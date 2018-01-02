@@ -114,10 +114,10 @@ class JackTokenizer():
         :param inputFile:
         """
         with open(inputFile, 'r') as self.file:
-            temp = self.file.read()
+            self.text = self.file.read()
 
         # remove comments and save the result for parsing
-        self.text = Comp_Exp.comment.value.sub(" ", temp)
+        # self.text = Comp_Exp.comment.value.sub(" ", temp)
 
         # Generator object that retrieves tokens one at a time
         self.token_gen = self.token_gen()
@@ -261,6 +261,11 @@ class JackTokenizer():
                 else:
                     yield (Token_Types.identifier, identifier_match.group(0))
                 self.text = self.text[identifier_match.end():]
+                continue
+
+            comment_match = Comp_Exp.comment.value.match(self.text)
+            if comment_match:
+                self.text = self.text[comment_match.end()]
                 continue
 
             space_match = Comp_Exp.spaces.value.match(self.text)
