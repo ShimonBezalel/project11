@@ -2,9 +2,9 @@
 
 """
 
-from JackTokenizer import JackTokenizer
-from CompilationEngine import CompilationEngine
+from SyntaxAnalyzer.Parser import CompilationEngine
 
+from JackCompiler.SyntaxAnalyzer.JackTokenizer import JackTokenizer
 
 FILE_PATH = 1
 
