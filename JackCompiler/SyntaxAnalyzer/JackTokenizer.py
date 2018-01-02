@@ -264,6 +264,7 @@ class JackTokenizer():
                 continue
 
             comment_match = Comp_Exp.comment.value.match(self.text)
+            # todo: needs good comment implementation and testing
             if comment_match:
                 self.text = self.text[comment_match.end()]
                 continue

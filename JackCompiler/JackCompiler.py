@@ -14,3 +14,13 @@ Include testing modules.
 
 """
 
+
+class Compiler:
+
+
+    def __init__(self):
+        pass
+
+
+    def compile(self, jack_file, dest_file_name):
+        pass

@@ -69,6 +69,7 @@ class VMWriter:
         :param label: a string
         :return:
         """
+        # todo: if-goto in this case?
         self.file.write("if-goto " + label + NEW_LINE)
 
     def write_call(self, name, num_args):
@@ -88,7 +89,7 @@ class VMWriter:
         :return:
         """
 
-        # todo: wtf
+        # todo: func
 
         self.file.write("wtf" + name + " " + str(num_locals) + NEW_LINE)
 
@@ -97,7 +98,9 @@ class VMWriter:
         write a return command
         :return:
         """
+        # todo: return
         pass
+
 
     def close(self):
         """
