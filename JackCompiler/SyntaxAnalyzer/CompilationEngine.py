@@ -11,6 +11,7 @@ value and leave it at the top of the VM stack.
 
 from JackCompiler.SyntaxAnalyzer.JackTokenizer import JackTokenizer, Token_Types
 from JackCompiler import VMWriter
+from JackCompiler.SymbolTable import *
 
 END_LINE    = "\n"
 SPACE         = "  "
@@ -45,6 +46,7 @@ class CompilationEngine():
 
         self.num_spaces = 0
         self.buffer = ""
+        self.symbol_table = SymbolTable()
         # with open(output_file, 'w') as self.output:
         while self.tokenizer.has_more_tokens():
             self.tokenizer.advance()
@@ -56,23 +58,27 @@ class CompilationEngine():
                                "module. " + self.tokenizer.keyWord()
                                + " in " + input_file)
 
+
     def compile_class(self):
         """
         Compiles a complete class
         :return:
         """
-        self.write('class', delim=True)
-        self.num_spaces += 1
-        self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
-        self.eat('class')
 
-        t_type, class_name = self.tokenizer.token_type(), self.tokenizer.identifier()
-        self.write_terminal(t_type.value, class_name)
+
+        # self.write('class', delim=True)
+        # self.num_spaces += 1
+        # self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
+        self.eat('class')
+        self.symbol_table = SymbolTable()
+
+        # t_type, class_name = self.tokenizer.token_type(), self.tokenizer.identifier()
+        # self.write_terminal(t_type.value, class_name)
 
         self.tokenizer.advance()
 
-        t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        self.write_terminal(t_type.value, symbol)
+        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
+        # self.write_terminal(t_type.value, symbol)
         self.eat('{')
 
         t_type = self.tokenizer.token_type()
@@ -90,9 +96,11 @@ class CompilationEngine():
 
             t_type = self.tokenizer.token_type()
 
-        self.write_terminal(t_type.value, self.tokenizer.symbol())
-        self.num_spaces -= 1
-        self.write('class', delim=True, end=True)
+        # todo: do i need here - self.eat('}')
+
+        # self.write_terminal(t_type.value, self.tokenizer.symbol())
+        # self.num_spaces -= 1
+        # self.write('class', delim=True, end=True)
 
     def eat(self, string):
         """
@@ -118,19 +126,16 @@ class CompilationEngine():
         """
         Compiles a static declaration or a field declaration.
         """
-        self.write("classVarDec", True)
-        self.num_spaces += 1
+        # self.write("classVarDec", True)
+        # self.num_spaces += 1
 
         # First word is static or field.
 
-        # if self.tokenizer.token_type() != Token_Types.keyword:
-        #     raise Exception("Cant compile class variable declaration without keyword token.")
-
         # should i check before if i can get a keyword?
-        var_sort = self.tokenizer.keyWord()
-        if var_sort not in ["static", "field"]:
+        var_kind = self.tokenizer.keyWord()
+        if var_kind not in ["static", "field"]:
             raise Exception("Cant compile class variable declaration without static of field.")
-        self.write("<keyword> " + var_sort + " </keyword>")
+        # self.write("<keyword> " + var_sort + " </keyword>")
         self.tokenizer.advance()
 
         # Second word is type.
@@ -138,10 +143,11 @@ class CompilationEngine():
             var_type = self.tokenizer.keyWord()
             if var_type not in ["int", "char", "boolean"]:
                 raise Exception("Cant compile class variable declaration with invalid keyword type.")
-            self.write("<keyword> " + var_type + " </keyword>")
+            # self.write("<keyword> " + var_type + " </keyword>")
             self.tokenizer.advance()
         elif self.tokenizer.token_type() == Token_Types.identifier:
-            self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            var_type = "identifier"
             self.tokenizer.advance()
         else:
             raise Exception("Cant compile class variable declaration with invalid identifier type.")
@@ -149,19 +155,23 @@ class CompilationEngine():
         # Third and so on, are variables names.
         # if self.tokenizer.token_type() != Token_Types.identifier:
         #     raise Exception("Cant compile class variable declaration without varName identifier.")
+
         # assert self.tokenizer.token_type() == Token_Types.identifier
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        var_name = self.tokenizer.identifier()
         self.tokenizer.advance()
-        self.possible_varName()
+
+        self.symbol_table.define(var_name, var_type, var_kind)
+        self.possible_varName(var_type, var_kind)
 
         # It will always end with ';'
         self.eat(';')
-        self.write("<symbol> ; </symbol>")
+        # self.write("<symbol> ; </symbol>")
 
-        self.num_spaces -= 1
-        self.write("classVarDec", True, True)
+        # self.num_spaces -= 1
+        # self.write("classVarDec", True, True)
 
-    def possible_varName(self):
+    def possible_varName(self, var_type, var_kind):
         """
         Compile 0 or more variable names, after an existing variable name.
         """
@@ -171,13 +181,15 @@ class CompilationEngine():
             # There is no varName
             return
         # There is an varName
-        self.write("<symbol> , </symbol>")
+        # self.write("<symbol> , </symbol>")
         # if self.tokenizer.token_type() != Token_Types.identifier:
         #     raise Exception("Cant compile (class or not) variable declaration without varName" +
         #                     " identifier after ',' .")
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+
+        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        self.symbol_table.define(self.tokenizer.identifier(), var_type, var_kind)
         self.tokenizer.advance()
-        self.possible_varName()
+        self.possible_varName(var_type, var_kind)
 
     def compile_subroutine(self):
         """
@@ -254,55 +266,40 @@ class CompilationEngine():
         Compiles a parameter list, which may be empty, not including the "()"
         :return:
         """
-        self.write('parameterList', delim=True)
-        self.num_spaces += 1
-
         t_type = self.tokenizer.token_type()
         finished = t_type == Token_Types.symbol and self.tokenizer.symbol() == ")"
         while not finished:
-            # Recognized type
+            # Recognized var_type
             if t_type == Token_Types.keyword:
-                token = self.tokenizer.keyWord()
+                var_type = self.tokenizer.keyWord()
             elif t_type == Token_Types.identifier:
-                token = self.tokenizer.identifier()
+                var_type = self.tokenizer.identifier()
             else:
                 raise KeyError("Got some weird type in paramlist: " + t_type.value)
-
-            # Write var type
-            self.write_terminal(t_type.value, token)
-
             self.tokenizer.advance()
 
             # Write var name
-            t_type, token = self.tokenizer.token_type(), self.tokenizer.identifier()
-            self.write_terminal(t_type.value, token)
-
+            var_name = self.tokenizer.identifier()
             self.tokenizer.advance()
+
+            # Add the variable as an argument to the symbol table
+            var_kind = 'argument'
+            self.symbol_table.define(var_name, var_type, var_kind)
 
             t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
             if symbol == ')':
                 finished = True
             else:
                 self.eat(',')
-                self.write_terminal(t_type.value, symbol)
                 t_type = self.tokenizer.token_type()
-
-
-
-        self.num_spaces -= 1
-        self.write('parameterList', delim=True, end=True)
 
     def compile_var_dec(self):
         """
         Compiles a var declaration
         :return:
         """
-        self.write("varDec", True)
-        self.num_spaces += 1
-
         # First word is valid.
         self.eat('var')
-        self.write("<keyword> var </keyword>")
 
         # Second word is type.
         if self.tokenizer.token_type() == Token_Types.keyword:
@@ -312,24 +309,21 @@ class CompilationEngine():
             self.write("<keyword> " + var_type + " </keyword>")
             self.tokenizer.advance()
         elif self.tokenizer.token_type() == Token_Types.identifier:
-            self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            var_type = self.tokenizer.identifier()
             self.tokenizer.advance()
         else:
             raise Exception("Cant compile variable declaration with invalid identifier type.")
 
         # Third and so on, are variables names.
-        # if self.tokenizer.token_type() != Token_Types.identifier:
-        #     raise Exception("Cant compile variable declaration without varName identifier.")
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        var_name = self.tokenizer.identifier()
+        # Add the variable as an local to the symbol table
+        var_kind = 'local'
+        self.symbol_table.define(var_name, var_type, var_kind)
         self.tokenizer.advance()
-        self.possible_varName()
+        self.possible_varName(var_type, var_kind)
 
         # It will always end with ';'
         self.eat(';')
-        self.write("<symbol> ; </symbol>")
-
-        self.num_spaces -= 1
-        self.write("varDec", True, True)
 
     def compile_statements(self):
         """
