@@ -6,3 +6,62 @@ in project 10. This module sotres and handles the following data:
     assigned to the identifier by the symbol table.
 -> Whether the identifier is presently being defined (e.g. the identifier stands for a
     variable declared in a "var" statement) or used."""
+
+import numpy as np
+
+NAME = 0
+TYPE = 1
+KIND = 2
+NUM  = 3
+
+class SymbolTable:
+    """
+
+    """
+    def __init__(self, table_scope):
+        """
+
+        :param table_typle:
+        """
+        self.scope = table_scope
+        self.table = {}
+        self.counters = {
+            "argument"  : 0,
+            "var"       : 0,
+            "static"    : 0,
+            "field"     : 0
+        }
+
+    def in_table(self, name):
+        """
+        Searches for a specific named symbol in the table
+        :param name:
+        :return:
+        """
+        return name in self.table.keys()
+
+    def get_number(self, name):
+        """
+        Returns the number of the specific name in the table. If the
+        name is not in the table, returns -1
+        :param name:
+        :return:
+        """
+        try:
+           num = self.table[name][NUM]
+           return num
+        except KeyError:
+            return -1
+
+
+
+    def add_symbol(self, name, type, kind):
+        assert name not in self.table.keys()
+        if kind in self.counters.keys():
+            num = self.counters[kind]
+        else:
+            raise ValueError("Unrecognized kind {}".format(kind))
+        # np.append(self.table, [name, type, kind, num])
+        self.table[name] = [type, kind, num]
+
+
