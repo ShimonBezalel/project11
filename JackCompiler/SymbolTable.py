@@ -23,12 +23,9 @@ in project 10. This module sotres and handles the following data:
 -> If the identifier's category is var, argument, static, or field, the running index
     assigned to the identifier by the symbol table.
 -> Whether the identifier is presently being defined (e.g. the identifier stands for a
-    variable declared in a "var" statement) or used."""
+    variable declared in a "var" statement) or used
+    """
 
-# import numpy as np
-
-
-# NAME = 0
 from enum import Enum
 TYPE        = 0
 KIND        = 1
@@ -62,10 +59,10 @@ class SymbolTable:
         # table: one for the class-scope and another one for the subroutine-scope. When a new subroutine
         # is started, the subroutine-scope table should be cleared.
 
-        self.class_table = {}
-        self.class_counters = {kind: 0 for kind in kinds}
-        self.subroutine_table = {}
-        self.subroutine_counters = {kind: 0 for kind in kinds}
+        self.class_table = self.Class_Table()
+        # self.class_counters = {kind: 0 for kind in kinds}
+        self.subroutine_tables = []
+        # self.subroutine_counters = {kind: 0 for kind in kinds}
         # self.counters = {
         #     "local"     : 0,
         #     "argument"  : 0,
@@ -83,7 +80,7 @@ class SymbolTable:
         scope.)
         :return:
         """
-        self.subroutine_table
+        self.subroutine_tables = [self.Subroutine_Table()]
 
     def define(self, name, type, kind):
         """
@@ -95,7 +92,20 @@ class SymbolTable:
         :param kind: one of [static, field, argument, var]
         :return:
         """
-        pass
+        if kind in ["static", "field"]:
+            assert name not in self.class_table.table.keys()
+            num = self.class_table.counters[kind]
+            self.class_table.counters[kind] += 1
+            self.class_table.table[name] = [type, kind, num]
+        if kind in ["argument", "var"]:
+            assert name not in self.subroutine_tables[-1].table.keys()
+            num = self.subroutine_tables[-1].counters[kind]
+            self.subroutine_tables[-1].counters[kind] += 1
+            self.subroutine_tables[-1].table[name] = [type, kind, num]
+        else:
+            raise ValueError("{} is an unrecognized type to define in the symbol "
+                             "table".format(kind))
+
 
     def var_count(self, kind):
         """
@@ -147,6 +157,34 @@ class SymbolTable:
 
 
     # ------------------ Internal/ alternative API   ------------------------------------
+    class Subroutine_Table:
+        """
+
+        """
+        def __init__(self):
+            """
+
+            """
+            self.counters = {kind: 0 for kind in kinds}
+            self.table = {}
+
+
+    class Class_Table:
+        """
+
+        """
+        def __init__(self):
+            """
+
+            """
+            self.counters = {kind: 0 for kind in kinds}
+            self.table = {}
+
+
+
+
+
+
     def in_table(self, name):
         """
         Searches for a specific named symbol in the table, working its way up the scopes
@@ -248,6 +286,9 @@ class SymbolTable:
 
     def _add_statics(self, statics):
         self.class_table.update(statics)
+
+
+
 
 
 
