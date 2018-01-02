@@ -10,6 +10,7 @@ value and leave it at the top of the VM stack.
 """
 
 from JackCompiler.SyntaxAnalyzer.JackTokenizer import JackTokenizer, Token_Types
+from JackCompiler import VMWriter
 
 END_LINE    = "\n"
 SPACE         = "  "
@@ -37,18 +38,23 @@ class CompilationEngine():
         :param output_file:
         """
         self.tokenizer = JackTokenizer(input_file)
+
+        # todo: Here we need to see if we open a new writer per class.
+
+        self.writer = VMWriter.VMWriter(output_file)
+
         self.num_spaces = 0
         self.buffer = ""
-        with open(output_file, 'w') as self.output:
-            while self.tokenizer.has_more_tokens():
-                self.tokenizer.advance()
-                assert self.tokenizer.token_type() == Token_Types.keyword
-                if self.tokenizer.keyWord() == 'class':
-                    self.compile_class()
-                else:
-                    raise KeyError("Received a token that does not fit the beginning of a "
-                                   "module. " + self.tokenizer.keyWord()
-                                   + " in " + input_file)
+        # with open(output_file, 'w') as self.output:
+        while self.tokenizer.has_more_tokens():
+            self.tokenizer.advance()
+            assert self.tokenizer.token_type() == Token_Types.keyword
+            if self.tokenizer.keyWord() == 'class':
+                self.compile_class()
+            else:
+                raise KeyError("Received a token that does not fit the beginning of a "
+                               "module. " + self.tokenizer.keyWord()
+                               + " in " + input_file)
 
     def compile_class(self):
         """

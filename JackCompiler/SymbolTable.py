@@ -5,10 +5,11 @@ each symbol has a scope from which it is visible in the source code. In the symb
 symbol is given a running number (index) within the scope, where the index starts at 0 and is
 reset when starting a new scope. The following kinds of identifiers may appear in the symbol
 table:
-Static: Scope: class.
-Field: Scope: class.
-Argument: Scope: subroutine (method/function/constructor).
-Var: Scope: subroutine (method/function/constructor).
+    Static:     Scope: class.
+    Field:      Scope: class.
+    Argument:   Scope: subroutine (method/function/constructor).
+    Var:        Scope: subroutine (method/function/constructor).
+
 When compiling code, any identifier not found in the symbol table may be assumed to be a
 subroutine name or a class name. Since the Jack language syntax rules suffice for distinguishing
 between these two possibilities, and since no “linking” needs to be done by the compiler, these
@@ -26,16 +27,17 @@ in project 10. This module sotres and handles the following data:
 
 # import numpy as np
 
+
 # NAME = 0
 from enum import Enum
 TYPE        = 0
-CATAGORY    = 1
+KIND        = 1
 NUM         = 2
 
-INDEX_CATAGORIES = 4
+# INDEX_CATAGORIES = 4
 
-catagories = ["var", "argument", "static", "field", "class", "subroutine"]
-
+# kinds = ["var", "argument", "static", "field", "class", "subroutine"]
+kinds = ["var", "argument", "static", "field"]
 
 class Table_Scopes(Enum):
     class_scope     = "class"
@@ -48,29 +50,31 @@ class SymbolTable:
 
     # ------------------ Suggested API   ------------------------------------
 
-    def __init__(self, parent_scope=None):
+    def __init__(self):
         """
         Generate a new level of the table, by creating a new scope. The parent's scope
         must be sent in the constructor. Only the highest scope should be none.
         :param  parent_scope:
         """
-        self.parent_scope = parent_scope
+        # self.parent_scope = parent_scope
 
         # Comment: you will probably need to use two separate hash tables to implement the symbol
         # table: one for the class-scope and another one for the subroutine-scope. When a new subroutine
         # is started, the subroutine-scope table should be cleared.
 
         self.class_table = {}
+        self.class_counters = {kind: 0 for kind in kinds}
         self.subroutine_table = {}
-        self.counters = {
-            "local"     : 0,
-            "argument"  : 0,
-            "var"       : 0,
-            "static"    : 0,
-            "field"     : 0,
-            "class"     : 0,
-            "subroutine": 0
-        }
+        self.subroutine_counters = {kind: 0 for kind in kinds}
+        # self.counters = {
+        #     "local"     : 0,
+        #     "argument"  : 0,
+        #     "var"       : 0,
+        #     "static"    : 0,
+        #     "field"     : 0,
+        #     "class"     : 0,
+        #     "subroutine": 0
+        # }
         self.retrieved = None
 
     def start_subroutine(self):
@@ -79,7 +83,7 @@ class SymbolTable:
         scope.)
         :return:
         """
-        pass
+        self.subroutine_table
 
     def define(self, name, type, kind):
         """
@@ -100,7 +104,7 @@ class SymbolTable:
         :param kind: one of [static, field, argument, var]
         :return: an int representing cur count
         """
-        pass
+        return self.counters[kind]
 
     def kind_of(self, name):
         """
@@ -110,7 +114,10 @@ class SymbolTable:
         :param name: string of symbol identifier
         :return:
         """
-        pass
+        if self.in_table(name):
+            return self.retrieved[KIND]
+        else:
+            return None
 
     def type_of(self, name):
         """
@@ -119,7 +126,11 @@ class SymbolTable:
         :param name: string of symbol identifier
         :return:
         """
-        pass
+        if self.in_table(name):
+
+            return self.retrieved[TYPE]
+        else:
+            return None
 
     def index_of(self, name):
         """
@@ -128,7 +139,11 @@ class SymbolTable:
         :param name: string of symbol identifier
         :return:
         """
-        pass
+        if self.in_table(name):
+            assert self.retrieved[KIND] in kinds[:INDEX_CATAGORIES]
+            return self.retrieved[NUM]
+        else:
+            return -1
 
 
     # ------------------ Internal/ alternative API   ------------------------------------
@@ -165,7 +180,7 @@ class SymbolTable:
         :return:
         """
         if self.in_table(name):
-            assert self.retrieved[CATAGORY] in catagories[:INDEX_CATAGORIES]
+            assert self.retrieved[KIND] in kinds[:INDEX_CATAGORIES]
             return self.retrieved[NUM]
         else:
             return -1
@@ -178,7 +193,7 @@ class SymbolTable:
         :return:
         """
         if self.in_table(name):
-            return self.retrieved[CATAGORY]
+            return self.retrieved[KIND]
         else:
             return None
 
