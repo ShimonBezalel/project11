@@ -4,8 +4,8 @@ This class writes VM commands into a file. It encapsulates the VM command syntax
 Emits VM commands into a file
 """
 
-ARITHMETIC_COMMANDS = ["ADD", "SUB", "NEG", "EQ", "GT", "LT", "AND", "OR", "NOT"]
-SEGMENTS = ["CONST", "ARG", "LOCAL", "STATIC", "THIS", "THAT", "POINTER", "TEMP"]
+ARITHMETIC_COMMANDS = ["add", "sub", "neg", "eq", "gt", "lt", "and", "or", "not"]
+SEGMENTS =  ["const", "arg", "local", "static", "this", "that", "pointer", "temp"]
 
 NEW_LINE = "\n"
 

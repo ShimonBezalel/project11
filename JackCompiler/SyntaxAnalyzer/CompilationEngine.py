@@ -28,6 +28,9 @@ ROUTINES        = ['function', 'method', 'constructor']
 ARGS = 'argument'
 LOCAL = 'local'
 
+
+
+
 class CompilationEngine():
     """
 
@@ -40,7 +43,9 @@ class CompilationEngine():
         :param input_file:
         :param output_file:
         """
+        self.symbol_table = SymbolTable()
         self.tokenizer = JackTokenizer(input_file)
+
 
         # todo: Here we need to see if we open a new writer per class.
 
@@ -198,9 +203,11 @@ class CompilationEngine():
         Compiles a complete method, function or constructor
         :return:
         """
-        self.write('subroutineDec', delim=True)
-        self.num_spaces += 1
-        self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
+        self.symbol_table.start_subroutine()
+        # self.write('subroutineDec', delim=True)
+        # self.num_spaces += 1
+
+        # self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
 
         # self.eat('function' | 'method' | 'constructor')
         self.tokenizer.advance()
@@ -210,32 +217,36 @@ class CompilationEngine():
             func_type = self.tokenizer.keyWord()
         else:
             func_type = self.tokenizer.identifier()
-        self.write_terminal(t_type.value, func_type)
+
+        # todo: allocate memory based on return type
+
+        # self.write_terminal(t_type.value, func_type)
 
         # self.eat('void' | some other type)
         self.tokenizer.advance()
 
         t_type, func_name = self.tokenizer.token_type(), self.tokenizer.identifier()
-        self.write_terminal(t_type.value, func_name)
+        # self.write_terminal(t_type.value, func_name)
+        self.writer.write_label(func_name)
 
         self.tokenizer.advance()
 
         t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        self.write_terminal(t_type.value, symbol)
+        # self.write_terminal(t_type.value, symbol)
         self.eat('(')
 
         self.compile_param_list()
 
         t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        self.write_terminal(t_type.value, symbol)
+        # self.write_terminal(t_type.value, symbol)
         self.eat(')')
 
-        self.write("subroutineBody", delim=True)
+        # self.write("subroutineBody", delim=True)
 
-        self.num_spaces += 1
+        # self.num_spaces += 1
 
-        t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        self.write_terminal(t_type.value, symbol)
+        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
+        # self.write_terminal(t_type.value, symbol)
         self.eat('{')
 
 
@@ -252,15 +263,15 @@ class CompilationEngine():
             # self.tokenizer.advance()
             t_type = self.tokenizer.token_type()
 
-        self.write_terminal(t_type.value, self.tokenizer.symbol())
+        # self.write_terminal(t_type.value, self.tokenizer.symbol())
         self.eat('}')
 
-        self.num_spaces -= 1
+        # self.num_spaces -= 1
 
-        self.write("subroutineBody", delim=True, end=True)
+        # self.write("subroutineBody", delim=True, end=True)
 
-        self.num_spaces -= 1
-        self.write('subroutineDec', delim=True, end=True)
+        # self.num_spaces -= 1
+        # self.write('subroutineDec', delim=True, end=True)
 
 
     def compile_param_list(self):
@@ -765,6 +776,7 @@ class CompilationEngine():
     def cleanbuffer(self):
         self.num_spaces -= 1
         self.buffer = ""
+
 
 
     # def write_recursive(self, name, advance_lim=1):
