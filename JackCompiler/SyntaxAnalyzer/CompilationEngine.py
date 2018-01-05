@@ -25,6 +25,8 @@ KEY_TERMS       = ["true", "false", "null", "this"]
 # SPECIAL_SYMBOL  = {'&quot;': "\"", '&amp;': "&", '&lt;': "<", '&gt;': ">"}
 OPERANDS        = ['+', '-', '*', '&amp;', '|', '&lt;', '&gt;', '=', "/"]
 ROUTINES        = ['function', 'method', 'constructor']
+ARGS = 'argument'
+LOCAL = 'local'
 
 class CompilationEngine():
     """
@@ -283,8 +285,7 @@ class CompilationEngine():
             self.tokenizer.advance()
 
             # Add the variable as an argument to the symbol table
-            var_kind = 'argument'
-            self.symbol_table.define(var_name, var_type, var_kind)
+            self.symbol_table.define(var_name, var_type, ARGS)
 
             t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
             if symbol == ')':
@@ -317,10 +318,9 @@ class CompilationEngine():
         # Third and so on, are variables names.
         var_name = self.tokenizer.identifier()
         # Add the variable as an local to the symbol table
-        var_kind = 'local'
-        self.symbol_table.define(var_name, var_type, var_kind)
+        self.symbol_table.define(var_name, var_type, LOCAL)
         self.tokenizer.advance()
-        self.possible_varName(var_type, var_kind)
+        self.possible_varName(var_type, LOCAL)
 
         # It will always end with ';'
         self.eat(';')
@@ -335,13 +335,13 @@ class CompilationEngine():
         # statement = self.tokenizer.keyWord()
         # if statement not in ['let', 'if', 'while', 'do', 'return']:
         #     return
-        self.write("statements", True)
-        self.num_spaces += 1
+        # self.write("statements", True)
+        # self.num_spaces += 1
 
         self.possible_single_statement()
 
-        self.num_spaces -= 1
-        self.write("statements", True, True)
+        # self.num_spaces -= 1
+        # self.write("statements", True, True)
 
     def possible_single_statement(self):
         """
@@ -352,7 +352,7 @@ class CompilationEngine():
 
         # if self.tokenizer.keyWord() in STATEMENTS:
             statement = self.tokenizer.keyWord()
-            self.write(statement + "Statement", True)
+            # self.write(statement + "Statement", True)
             if statement == 'let':
                 self.compile_let()
             elif statement == 'if':
@@ -365,7 +365,7 @@ class CompilationEngine():
                 self.compile_return()
             # else:
             #     raise Exception("Invalid statement.")
-            self.write(statement + "Statement", True, True)
+            # self.write(statement + "Statement", True, True)
             self.possible_single_statement()
 
     def compile_do(self):
@@ -519,13 +519,13 @@ class CompilationEngine():
         Compile an expression.
         :return:
         """
-        self.buffer += self.num_spaces * SPACE + "<expression>\n"
-        self.num_spaces += 1
+        # self.buffer += self.num_spaces * SPACE + "<expression>\n"
+        # self.num_spaces += 1
         try:
             self.compile_term()
             self.possible_op_term()
-            self.num_spaces -= 1
-            self.write("expression", True, True)
+            # self.num_spaces -= 1
+            # self.write("expression", True, True)
         except:
             self.cleanbuffer()
 
@@ -573,18 +573,20 @@ class CompilationEngine():
         advanced over.
         :return:
         """
-        self.buffer += SPACE * self.num_spaces + "<term>\n"
-        self.num_spaces += 1
+        # self.buffer += SPACE * self.num_spaces + "<term>\n"
+        # self.num_spaces += 1
 
         type = self.tokenizer.token_type()
         # maybe i should divide it for int and string
         # If the token is a string_const or int_const
         if type in [Token_Types.string_const, Token_Types.int_const] :
             value = self.tokenizer.intVal() if type == Token_Types.int_const else self.tokenizer.stringVal()
-            self.write("<" + type.value + "> " +
-                       value +
-                       " </" + type.value + ">", use_buffer=True)
+            # self.write("<" + type.value + "> " +
+            #            value +
+            #            " </" + type.value + ">", use_buffer=True)
             self.tokenizer.advance()
+
+        
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
@@ -689,21 +691,21 @@ class CompilationEngine():
         """
         Compile a comma-separated list of expressions, which may be empty.
         """
-        self.write("expressionList", True)
-        self.num_spaces += 1
+        # self.write("expressionList", True)
+        # self.num_spaces += 1
 
         try:
             self.compile_expression()
         except Exception:
-            self.num_spaces -= 1
-            self.write("expressionList", True, True)
+            # self.num_spaces -= 1
+            # self.write("expressionList", True, True)
             return
 
 
 
         self.possible_more_expression()
-        self.num_spaces -= 1
-        self.write("expressionList", True, True)
+        # self.num_spaces -= 1
+        # self.write("expressionList", True, True)
 
     def possible_more_expression(self):
         """
@@ -719,6 +721,7 @@ class CompilationEngine():
 
         self.possible_more_expression()
 
+#-------------------------------------------------------------------------------------
     def write(self, statement, delim = False, end = False, new_line=True,
               no_space = False, use_buffer=False):
         """
