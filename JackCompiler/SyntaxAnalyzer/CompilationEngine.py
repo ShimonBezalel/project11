@@ -280,8 +280,11 @@ class CompilationEngine():
         :return:
         """
         self.eat("method")
-        self.symbol_table.define("this", self.class_name, "argument")
         self.compile_func_name()
+        self.symbol_table.define("this", self.class_name, "argument")
+        self.writer.write_push(ARGS, 0)
+        self.writer.write_pop(POINTER, 0)
+
 
     def compile_function(self):
         """
@@ -301,6 +304,9 @@ class CompilationEngine():
             func_type = self.tokenizer.keyWord()
         else:
             func_type = self.tokenizer.identifier()
+
+        # todo: if function type is void, we need to force a return of constant 0 at
+        # the end, and pop to temp 0 after the function call.
 
         self.tokenizer.advance()
 
@@ -464,6 +470,7 @@ class CompilationEngine():
         symbol = self.tokenizer.identifier()
         segment = self.symbol_table.kind_of(symbol)
         index = self.symbol_table.index_of(symbol)
+        # todo: need to write this symbol. if its a field need to add "push this 0"
         # self.compile_var_dec()
         # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
         # self.write_terminal("identifier", self.tokenizer.identifier())
