@@ -553,22 +553,31 @@ class CompilationEngine():
         self.eat('}')
         self.write("<symbol> } </symbol>")
 
-    def compile_expression(self):
+    def compile_expression(self, from_op_term=False):
         """
         Compile an expression.
         :return:
         """
-        # self.buffer += self.num_spaces * SPACE + "<expression>\n"
-        # self.num_spaces += 1
-        try:
-            self.compile_term()
-            self.possible_op_term()
-            # self.num_spaces -= 1
-            # self.write("expression", True, True)
-        except:
-            self.cleanbuffer()
 
+        if self.tokenizer.token_type() == Token_Types.symbol:
+            if self.tokenizer.symbol() == '(':
+                # There is an open bracket
+                self.tokenizer.advance()
+                self.compile_expression()
 
+                if self.tokenizer.token_type() == Token_Types.symbol:
+                    if self.tokenizer.symbol() == ')':
+                        self.tokenizer.advance()
+                else:
+                    raise Exception("There more '(' than ')', while compiling expression.")
+
+                if not from_op_term:
+                    self.possible_op_term()
+                return
+
+        # There is no open bracket
+        self.compile_term()
+        self.possible_op_term()
 
     def subroutineCall_continue(self):
         """
@@ -713,25 +722,46 @@ class CompilationEngine():
         """
         # There is no op term
         if self.tokenizer.token_type() != Token_Types.symbol:
-            # raise Exception("After term can be only nothing or (op term)*.")
             return
         op = self.tokenizer.symbol()
-
         if op not in OPERANDS:
-            # raise Exception("Invalid operator use in term.")
-            return # should it be like this?
-
-        try:
-            # if op in SPECIAL_SYMBOL.keys():
-            #     op = SPECIAL_SYMBOL[op]
-            self.eat(op)
-        except Exception:
             return
-        # There is op term
-        self.write("<symbol> " + op + " </symbol>")
-        self.compile_term()
 
+        # There is op term
+        self.tokenizer.advance()
+        if self.tokenizer.token_type() == Token_Types.symbol:
+            if op == '(':
+                self.compile_expression(True)
+        else:
+            self.compile_term()
+
+        self.handle_op(op)
         self.possible_op_term()
+
+    def handle_op(self, op):
+        if op == '+':
+            self.writer.write_arithmetic('add')
+        elif op == '-':
+            self.writer.write_arithmetic('sub')
+        elif op == '*':
+            self.writer.write_call(BuildinFunctions.math_mult, 0)
+        elif op == '/':
+            self.writer.write_call(BuildinFunctions.math_div, 0)
+        elif op == '=':
+            self.writer.write_arithmetic('eq')
+        elif op == '&gt':
+            self.writer.write_arithmetic('gt')
+        elif op == '&lt':
+            self.writer.write_arithmetic('lt')
+        elif op == '&amp':
+            self.writer.write_arithmetic('and')
+        elif op == '|':
+            self.writer.write_arithmetic('or')
+        else:
+            raise Exception(op + " is an invalid operation between 2 terms.") # wont happen according to the current use
+
+
+
 
     def compile_expression_list(self):
         """
@@ -746,8 +776,6 @@ class CompilationEngine():
             # self.num_spaces -= 1
             # self.write("expressionList", True, True)
             return
-
-
 
         self.possible_more_expression()
         # self.num_spaces -= 1
