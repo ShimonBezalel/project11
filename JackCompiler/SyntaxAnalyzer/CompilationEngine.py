@@ -553,7 +553,7 @@ class CompilationEngine():
         self.eat('}')
         self.write("<symbol> } </symbol>")
 
-    def compile_expression(self, open_bracket = False):
+    def compile_expression(self):
         """
         Compile an expression.
         :return:
@@ -561,13 +561,8 @@ class CompilationEngine():
         # self.buffer += self.num_spaces * SPACE + "<expression>\n"
         # self.num_spaces += 1
         try:
-            # open_bracket = False
-            if self.tokenizer.token_type() == Token_Types.symbol:
-                if self.tokenizer.symbol() == '(':
-                    self.compile_expression(True)
-
             self.compile_term()
-            self.possible_op_term([], )
+            self.possible_op_term()
             # self.num_spaces -= 1
             # self.write("expression", True, True)
         except:
@@ -630,8 +625,8 @@ class CompilationEngine():
             self.writer.write_push(CONSTANT, len(str_const) - 1)
             self.writer.write_call(BuildinFunctions.str_new, 1)
             for i in range(len(str_const)):
-                self.writer.write_push(CONSTANT, int(str_const[i]))
-                self.writer.write_call(BuildinFunctions.str_app_char, 1)
+                self.writer.write_push(CONSTANT, ord(str_const[i]))
+                self.writer.write_call(BuiltinFunctions.str_new.str_app_char, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
@@ -711,13 +706,11 @@ class CompilationEngine():
                 # raise Exception("If there is a symbol in the token it have to be . or [ or (.")
                 return
 
-    def possible_op_term(self, op_list, open_bracket):
+    def possible_op_term(self):
         """
         If the next token is a suitable operation symbol than compile more terms,
         otherwise return nothing.
         """
-        # op_list =[]
-
         # There is no op term
         if self.tokenizer.token_type() != Token_Types.symbol:
             # raise Exception("After term can be only nothing or (op term)*.")
@@ -725,7 +718,8 @@ class CompilationEngine():
         op = self.tokenizer.symbol()
 
         if op not in OPERANDS:
-            return
+            # raise Exception("Invalid operator use in term.")
+            return # should it be like this?
 
         try:
             # if op in SPECIAL_SYMBOL.keys():
@@ -733,47 +727,11 @@ class CompilationEngine():
             self.eat(op)
         except Exception:
             return
-
         # There is op term
-        # self.write("<symbol> " + op + " </symbol>")
+        self.write("<symbol> " + op + " </symbol>")
         self.compile_term()
 
-        while open_bracket:
-            if self.tokenizer.token_type() == Token_Types.symbol:
-                if self.tokenizer.symbol() == ')':
-                    break
-            self.possible_op_term(op_list + [op])
-
-        # handle op
-        for i in range(len(op_list)): # maybe i dont need this?
-            self.handle_op(op_list[i])
-
         self.possible_op_term()
-
-    def handle_op(self, op):
-        if op == '+':
-            self.writer.write_arithmetic('add')
-        elif op == '-':
-            self.writer.write_arithmetic('sub')
-        elif op == '*':
-            self.writer.write_call(BuildinFunctions.math_mult, 0)
-        elif op == '/':
-            self.writer.write_call(BuildinFunctions.math_div, 0)
-        elif op == '=':
-            self.writer.write_arithmetic('eq')
-        elif op == '&gt':
-            self.writer.write_arithmetic('gt')
-        elif op == '&lt':
-            self.writer.write_arithmetic('lt')
-        elif op == '&amp':
-            self.writer.write_arithmetic('and')
-        elif op == '|':
-            self.writer.write_arithmetic('or')
-        else:
-            raise Exception(op + " is an invalid operation between 2 terms.") # wont happen according to the current use
-
-
-
 
     def compile_expression_list(self):
         """
@@ -788,6 +746,8 @@ class CompilationEngine():
             # self.num_spaces -= 1
             # self.write("expressionList", True, True)
             return
+
+
 
         self.possible_more_expression()
         # self.num_spaces -= 1
