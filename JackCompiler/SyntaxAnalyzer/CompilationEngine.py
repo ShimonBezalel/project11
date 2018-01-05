@@ -408,16 +408,18 @@ class CompilationEngine():
         Compile do statement.
         :return:
         """
-        self.eat('do')
-        self.num_spaces += 1
-        self.write("<keyword> do </keyword>")
-
         # is the check is necessary?  probably not..
         # if type != Token_Types.identifier:
         #     raise Exception()
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        value = self.tokenizer.identifier()
         self.tokenizer.advance()
-        self.subroutineCall_continue()
+
+        in_symbol_table = self.symbol_table.index_of(value) != None
+
+        # how to handle if it's an object?
+
+        self.subroutineCall_continue(self.tokenizer.identifier(), in_symbol_table)
 
         self.eat(';')
         self.write("<symbol> ; </symbol>")
@@ -579,33 +581,36 @@ class CompilationEngine():
         self.compile_term()
         self.possible_op_term()
 
-    def subroutineCall_continue(self):
+    def subroutineCall_continue(self, func, is_method):
         """
         After an identifier there can be a '.' or '(', otherwise it not function call
         (subroutineCall).
         :return:
         """
-        # should i check every time if it's type symbol?
         symbol = self.tokenizer.symbol()
         if symbol == '(':
             self.eat('(')
-            # self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+            num_exp = self.compile_expression_list()
             self.eat(')')
-            # self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         elif symbol == '.':
             self.eat('.')
-            self.write("<symbol> . </symbol>")
-
-            self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            if is_method:
+                object = func # The object name
+                segment, index = self.symbol_table.kind_of(object), self.symbol_table.index_of(object)
+                # what is happening if the kind is field?
+                self.writer.write_push(segment, index)
+                func = self.tokenizer.identifier()
+            else:
+                func += "." + self.tokenizer.identifier()
             self.tokenizer.advance()
 
             self.eat('(')
-            self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+
+            num_exp = self.compile_expression_list()
             self.eat(')')
-            self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         else:
             raise Exception("If there is a symbol in the subroutineCall it have to be . or (.")
@@ -635,7 +640,7 @@ class CompilationEngine():
             self.writer.write_call(BuildinFunctions.str_new, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, ord(str_const[i]))
-                self.writer.write_call(BuiltinFunctions.str_new.str_app_char, 1)
+                self.writer.write_call(BuildinFunctions.str_app_char, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
@@ -651,47 +656,41 @@ class CompilationEngine():
             self.tokenizer.advance()
 
         # If the token is an identifier
-        elif type == Token_Types.identifier:
+        elif type == Token_Types.identifier: # todo: needs improvement
             name = self.tokenizer.identifier()
             kind, index = self.symbol_table.kind_of(name), self.symbol_table.index_of(name)
             if kind == "field":
                 # Using 'this'
                 self.writer.write_push(POINTER, 0)
                 self.writer.write_push(THIS, index)
-            # kind = THIS if kind == "field" else kind
+            elif not kind:
+                self.writer.write_push(kind, index)
 
-            self.writer.write_push(kind, index)
+            is_object = True if kind == "field" else False
             self.tokenizer.advance()
-            self.possible_identifier_continue()
-
-
+            self.possible_identifier_continue(is_object)
 
 
 
         # If the token is an symbol
         elif type == Token_Types.symbol:
             if self.tokenizer.symbol() == '(':
-                self.eat('(')
-                self.write("<symbol> ( </symbol>", use_buffer=True)
                 self.compile_expression()
-                self.eat(')')
-                self.write("<symbol> ) </symbol>")
             elif self.tokenizer.symbol() in ["-", "~"]:
-                self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>", use_buffer=True)
+                # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>", use_buffer=True)
                 self.eat(self.tokenizer.symbol())
                 # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>")
                 self.compile_term()
+                command = "neg" if self.tokenizer.symbol() == "-" else "not"
+                self.writer.write_arithmetic(command)
             else:
-                self.cleanbuffer()
+                # self.cleanbuffer()
                 raise Exception()
 
         else:
             raise Exception("Invalid token for creating term.")
 
-        self.num_spaces -= 1
-        self.write("term", True, True)
-
-    def possible_identifier_continue(self, pre_term):
+    def possible_identifier_continue(self, is_obj):
         """
         In a term if identifier continues with
         - '[' - it's a call of an array
@@ -710,7 +709,7 @@ class CompilationEngine():
                 return
 
             try:
-                self.subroutineCall_continue()
+                self.subroutineCall_continue(is_obj)
             except Exception:
                 # raise Exception("If there is a symbol in the token it have to be . or [ or (.")
                 return
@@ -767,21 +766,14 @@ class CompilationEngine():
         """
         Compile a comma-separated list of expressions, which may be empty.
         """
-        # self.write("expressionList", True)
-        # self.num_spaces += 1
-
         try:
             self.compile_expression()
         except Exception:
-            # self.num_spaces -= 1
-            # self.write("expressionList", True, True)
-            return
+            return 0
 
-        self.possible_more_expression()
-        # self.num_spaces -= 1
-        # self.write("expressionList", True, True)
+        return self.possible_more_expression(1)
 
-    def possible_more_expression(self):
+    def possible_more_expression(self, exp_count):
         """
         If the next token is a ',' than compile more expressions,
         otherwise return nothing.
@@ -789,11 +781,11 @@ class CompilationEngine():
         try:
             self.eat(',')
         except Exception:
-            return
-        self.write("<symbol> , </symbol>")
+            return exp_count
+        # self.write("<symbol> , </symbol>")
         self.compile_expression()
 
-        self.possible_more_expression()
+        return self.possible_more_expression(exp_count + 1)
 
 #-------------------------------------------------------------------------------------
     def write(self, statement, delim = False, end = False, new_line=True,
