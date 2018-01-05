@@ -31,8 +31,8 @@ TYPE        = 0
 KIND        = 1
 NUM         = 2
 
-# kinds = ["var", "argument", "static", "field", "class", "subroutine"]
-kinds = ["var", "argument", "static", "field"]
+# kinds = ["local", "argument", "static", "field", "class", "subroutine"]
+kinds = ["local", "argument", "static", "field"]
 
 
 class SymbolTable:
@@ -83,7 +83,7 @@ class SymbolTable:
             num = self.class_table.counters[kind]
             self.class_table.counters[kind] += 1
             self.class_table.table[name] = [type, kind, num]
-        if kind in ["argument", "var"]:
+        if kind in ["argument", "local"]:
             assert name not in self.subroutine_tables[-1].table.keys()
             num = self.subroutine_tables[-1].counters[kind]
             self.subroutine_tables[-1].counters[kind] += 1
@@ -101,7 +101,7 @@ class SymbolTable:
         """
         if kind in ["static", "field"]:
             return self.class_table.counters[kind]
-        if kind in ["argument", "var"]:
+        if kind in ["argument", "local"]:
             return self.subroutine_tables[-1].counters[kind]
 
         else:

@@ -59,6 +59,7 @@ class CompilationEngine():
             self.tokenizer.advance()
             assert self.tokenizer.token_type() == Token_Types.keyword
             if self.tokenizer.keyWord() == 'class':
+                self.class_name = None
                 self.compile_class()
             else:
                 raise KeyError("Received a token that does not fit the beginning of a "
@@ -79,7 +80,7 @@ class CompilationEngine():
         self.eat('class')
         self.symbol_table = SymbolTable()
 
-        # t_type, class_name = self.tokenizer.token_type(), self.tokenizer.identifier()
+        t_type, self.class_name = self.tokenizer.token_type(), self.tokenizer.identifier()
         # self.write_terminal(t_type.value, class_name)
 
         self.tokenizer.advance()
@@ -141,7 +142,8 @@ class CompilationEngine():
         # should i check before if i can get a keyword?
         var_kind = self.tokenizer.keyWord()
         if var_kind not in ["static", "field"]:
-            raise Exception("Cant compile class variable declaration without static of field.")
+            raise Exception("Cant compile class variable declaration without static of "
+                            "field." + var_kind)
         # self.write("<keyword> " + var_sort + " </keyword>")
         self.tokenizer.advance()
 
@@ -149,15 +151,17 @@ class CompilationEngine():
         if self.tokenizer.token_type() == Token_Types.keyword:
             var_type = self.tokenizer.keyWord()
             if var_type not in ["int", "char", "boolean"]:
-                raise Exception("Cant compile class variable declaration with invalid keyword type.")
+                raise Exception("Cant compile class variable declaration with invalid "
+                                "keyword type." + var_type)
             # self.write("<keyword> " + var_type + " </keyword>")
-            self.tokenizer.advance()
+
         elif self.tokenizer.token_type() == Token_Types.identifier:
             # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
-            var_type = "identifier"
-            self.tokenizer.advance()
+            var_type = self.tokenizer.identifier()
         else:
             raise Exception("Cant compile class variable declaration with invalid identifier type.")
+
+        self.tokenizer.advance()
 
         # Third and so on, are variables names.
         # if self.tokenizer.token_type() != Token_Types.identifier:
@@ -166,6 +170,7 @@ class CompilationEngine():
         # assert self.tokenizer.token_type() == Token_Types.identifier
         # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
         var_name = self.tokenizer.identifier()
+
         self.tokenizer.advance()
 
         self.symbol_table.define(var_name, var_type, var_kind)
@@ -187,7 +192,7 @@ class CompilationEngine():
         except:
             # There is no varName
             return
-        # There is an varName
+        # There is a varName
         # self.write("<symbol> , </symbol>")
         # if self.tokenizer.token_type() != Token_Types.identifier:
         #     raise Exception("Cant compile (class or not) variable declaration without varName" +
@@ -204,6 +209,8 @@ class CompilationEngine():
         :return:
         """
         self.symbol_table.start_subroutine()
+        self.symbol_table.define("this", self.class_name, "argument")
+
         # self.write('subroutineDec', delim=True)
         # self.num_spaces += 1
 
@@ -231,13 +238,13 @@ class CompilationEngine():
 
         self.tokenizer.advance()
 
-        t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
+        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
         # self.write_terminal(t_type.value, symbol)
         self.eat('(')
 
         self.compile_param_list()
 
-        t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
+        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
         # self.write_terminal(t_type.value, symbol)
         self.eat(')')
 
@@ -282,7 +289,7 @@ class CompilationEngine():
         t_type = self.tokenizer.token_type()
         finished = t_type == Token_Types.symbol and self.tokenizer.symbol() == ")"
         while not finished:
-            # Recognized var_type
+            # Recognize var_type
             if t_type == Token_Types.keyword:
                 var_type = self.tokenizer.keyWord()
             elif t_type == Token_Types.identifier:
@@ -405,23 +412,27 @@ class CompilationEngine():
         Compile let statement.
         """
         self.eat('let')
-        self.num_spaces += 1
-        self.write("<keyword> let </keyword>")
-
+        # self.num_spaces += 1
+        # self.write("<keyword> let </keyword>")
+        symbol = self.tokenizer.identifier()
+        segment = self.symbol_table.kind_of(symbol)
+        index = self.symbol_table.index_of(symbol)
         # self.compile_var_dec()
         # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
-        self.write_terminal("identifier", self.tokenizer.identifier())
+        # self.write_terminal("identifier", self.tokenizer.identifier())
         self.tokenizer.advance()
         self.possible_array()
 
         self.eat('=')
-        self.write("<symbol> = </symbol>")
+        # self.write("<symbol> = </symbol>")
 
         self.compile_expression()
 
         self.eat(';')
-        self.write("<symbol> ; </symbol>")
-        self.num_spaces -= 1
+
+        self.writer.write_pop(segment, index)
+        # self.write("<symbol> ; </symbol>")
+        # self.num_spaces -= 1
         # self.write("</letStatement>")
 
     def possible_array(self):
