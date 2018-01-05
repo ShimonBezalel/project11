@@ -83,7 +83,6 @@ class CompilationEngine():
                                "module. " + self.tokenizer.keyWord()
                                + " in " + input_file)
 
-
     def compile_class(self):
         """
         Compiles a complete class
@@ -220,7 +219,6 @@ class CompilationEngine():
         self.tokenizer.advance()
         self.possible_varName(var_type, var_kind)
 
-
 # Subroutine Compilation logic ---------------------------------------------------------
 
     def compile_subroutine(self):
@@ -261,17 +259,20 @@ class CompilationEngine():
         """
         self.eat("constructor")
 
+        # make sure the constructor func returns a class instance
+        assert self.tokenizer.identifier() == self.class_name
+        self.tokenizer.advance()
+        self.eat("new")
+
+        func_name = self.class_name + ".new"
+        self.writer.write_label(func_name)
+
         self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
         self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
         self.writer.write_pop(POINTER, 0)
 
         # make sure the constructor func returns a class instance
         assert self.tokenizer.identifier() == self.class_name
-
-        self.tokenizer.advance()
-
-        self.eat("new")
-
 
     def compile_method(self):
         """
@@ -281,7 +282,6 @@ class CompilationEngine():
         self.eat("method")
         self.symbol_table.define("this", self.class_name, "argument")
         self.compile_func_name()
-
 
     def compile_function(self):
         """
@@ -304,11 +304,10 @@ class CompilationEngine():
 
         self.tokenizer.advance()
 
-        t_type, func_name = self.tokenizer.token_type(), self.tokenizer.identifier()
+        func_name = self.class_name + "." + self.tokenizer.identifier()
         self.writer.write_label(func_name)
 
         self.tokenizer.advance()
-
 
     def compile_subroutine_body(self):
         """
@@ -326,7 +325,6 @@ class CompilationEngine():
                 raise KeyError("an unknown step inside a subroutine, ", t_type)
             # self.tokenizer.advance()
             t_type = self.tokenizer.token_type()
-
 
     def compile_param_list(self):
         """
@@ -359,7 +357,6 @@ class CompilationEngine():
                 self.eat(',')
                 t_type = self.tokenizer.token_type()
 
-
     def compile_var_dec(self):
         """
         Compiles a var declaration
@@ -391,7 +388,7 @@ class CompilationEngine():
         # It will always end with ';'
         self.eat(';')
 
-#End of Subroutine Compilation logic ---------------------------------------------------
+# End of Subroutine Compilation logic ---------------------------------------------------
 
     def compile_statements(self):
         """
@@ -603,8 +600,6 @@ class CompilationEngine():
         except:
             self.cleanbuffer()
 
-
-
     def subroutineCall_continue(self):
         """
         After an identifier there can be a '.' or '(', otherwise it not function call
@@ -624,7 +619,8 @@ class CompilationEngine():
             self.eat('.')
             # self.write("<symbol> . </symbol>")
             called_func = self.tokenizer.identifier()
-            #
+            self.writer.write_push(self.symbol_table.kind_of(called_func),
+                                   self.symbol_table.index_of(called_func))
             # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
             self.tokenizer.advance()
 
@@ -633,7 +629,8 @@ class CompilationEngine():
             self.compile_expression_list()
             self.eat(')')
 
-            self.writer.write_call(called_func, num_args=0) # need to find out how many
+            self.writer.write_call(called_func, num_args=0) #todo: need to find out how
+            # many
             #  args
             # self.write("<symbol> ) </symbol>")
 
@@ -721,7 +718,7 @@ class CompilationEngine():
         self.num_spaces -= 1
         self.write("term", True, True)
 
-    def possible_identifier_continue(self, pre_term):
+    def possible_identifier_continue(self, pre_term=None):
         """
         In a term if identifier continues with
         - '[' - it's a call of an array
