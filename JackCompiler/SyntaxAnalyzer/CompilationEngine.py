@@ -220,6 +220,9 @@ class CompilationEngine():
         self.tokenizer.advance()
         self.possible_varName(var_type, var_kind)
 
+
+# Subroutine Compilation logic ---------------------------------------------------------
+
     def compile_subroutine(self):
         """
         Compiles a complete method, function or constructor
@@ -228,88 +231,28 @@ class CompilationEngine():
 
         self.symbol_table.start_subroutine()
 
-
-
         subroutine_type = self.tokenizer.keyWord()
 
+        # Read opening line of function up to parameter list and compile accordingly
         if subroutine_type == "constructor":
             self.compile_constructor()
-            # self.eat("constructor")
         elif subroutine_type == "method":
             self.compile_method()
-            self.symbol_table.define("this", self.class_name, "argument")
-            self.eat("method")
         elif subroutine_type == "function":
-            pass
-            self.eat('function')
+            self.compile_function()
 
-
-
-
-
-        # self.write('subroutineDec', delim=True)
-        # self.num_spaces += 1
-
-        # self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
-
-        # self.eat('function' | 'method' | 'constructor')
-        # self.tokenizer.advance()
-
-        t_type = self.tokenizer.token_type()
-        if t_type == Token_Types.keyword:
-            func_type = self.tokenizer.keyWord()
-        else:
-            func_type = self.tokenizer.identifier()
-
-
-
-
-        # self.write_terminal(t_type.value, func_type)
-
-        # self.eat('void' | some other type)
-        self.tokenizer.advance()
-
-        t_type, func_name = self.tokenizer.token_type(), self.tokenizer.identifier()
-        # self.write_terminal(t_type.value, func_name)
-        self.writer.write_label(func_name)
-
-        # self.writer.write_push(CONSTANT, 0)  #to#do: number of args?
-        # self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
-        # self.writer.write_pop(POINTER, 0)
-
-        self.tokenizer.advance()
-
-        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        # self.write_terminal(t_type.value, symbol)
         self.eat('(')
 
         self.compile_param_list()
 
-        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        # self.write_terminal(t_type.value, symbol)
         self.eat(')')
 
-        # self.write("subroutineBody", delim=True)
-
-        # self.num_spaces += 1
-
-        # t_type, symbol = self.tokenizer.token_type(), self.tokenizer.symbol()
-        # self.write_terminal(t_type.value, symbol)
         self.eat('{')
 
+        # Including return
+        self.compile_subroutine_body()
 
-
-
-
-        # self.write_terminal(t_type.value, self.tokenizer.symbol())
         self.eat('}')
-
-        # self.num_spaces -= 1
-
-        # self.write("subroutineBody", delim=True, end=True)
-
-        # self.num_spaces -= 1
-        # self.write('subroutineDec', delim=True, end=True)
 
     def compile_constructor(self):
         """
@@ -329,19 +272,42 @@ class CompilationEngine():
 
         self.eat("new")
 
-        self.eat('(')
 
-        self.compile_param_list()
+    def compile_method(self):
+        """
 
-        self.eat(')')
-
-        self.eat('{')
-
-        self.compile_subroutine_body()
-
-        self.eat('}')
+        :return:
+        """
+        self.eat("method")
+        self.symbol_table.define("this", self.class_name, "argument")
+        self.compile_func_name()
 
 
+    def compile_function(self):
+        """
+
+        :return:
+        """
+        self.eat('function')
+        self.compile_func_name()
+
+    def compile_func_name(self):
+        """
+
+        :return:
+        """
+        t_type = self.tokenizer.token_type()
+        if t_type == Token_Types.keyword:
+            func_type = self.tokenizer.keyWord()
+        else:
+            func_type = self.tokenizer.identifier()
+
+        self.tokenizer.advance()
+
+        t_type, func_name = self.tokenizer.token_type(), self.tokenizer.identifier()
+        self.writer.write_label(func_name)
+
+        self.tokenizer.advance()
 
 
     def compile_subroutine_body(self):
@@ -360,10 +326,6 @@ class CompilationEngine():
                 raise KeyError("an unknown step inside a subroutine, ", t_type)
             # self.tokenizer.advance()
             t_type = self.tokenizer.token_type()
-
-
-
-
 
 
     def compile_param_list(self):
@@ -397,6 +359,7 @@ class CompilationEngine():
                 self.eat(',')
                 t_type = self.tokenizer.token_type()
 
+
     def compile_var_dec(self):
         """
         Compiles a var declaration
@@ -427,6 +390,8 @@ class CompilationEngine():
 
         # It will always end with ';'
         self.eat(';')
+
+#End of Subroutine Compilation logic ---------------------------------------------------
 
     def compile_statements(self):
         """
