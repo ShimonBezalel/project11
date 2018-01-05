@@ -626,7 +626,7 @@ class CompilationEngine():
             self.writer.write_call(BuildinFunctions.str_new, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, int(str_const[i]))
-                self.writer.write_call(BuildinFunctions.str_new.str_app_char, 1)
+                self.writer.write_call(BuildinFunctions.str_app_char, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
@@ -711,6 +711,8 @@ class CompilationEngine():
         If the next token is a suitable operation symbol than compile more terms,
         otherwise return nothing.
         """
+        op_list =[]
+
         # There is no op term
         if self.tokenizer.token_type() != Token_Types.symbol:
             # raise Exception("After term can be only nothing or (op term)*.")
@@ -718,8 +720,7 @@ class CompilationEngine():
         op = self.tokenizer.symbol()
 
         if op not in OPERANDS:
-            # raise Exception("Invalid operator use in term.")
-            return # should it be like this?
+            return
 
         try:
             # if op in SPECIAL_SYMBOL.keys():
@@ -727,11 +728,17 @@ class CompilationEngine():
             self.eat(op)
         except Exception:
             return
+
         # There is op term
-        self.write("<symbol> " + op + " </symbol>")
+        # self.write("<symbol> " + op + " </symbol>")
         self.compile_term()
 
-        self.possible_op_term()
+
+        while True:
+            if self.tokenizer.symbol() == ')':
+                self.possible_op_term()
+
+        # handle op
 
     def compile_expression_list(self):
         """
