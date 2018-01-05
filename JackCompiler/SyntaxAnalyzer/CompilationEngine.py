@@ -34,7 +34,7 @@ POINTER = "POINTER"
 
 
 @unique
-class BuildinFunctions(Enum):
+class BuiltinFunctions(Enum):
     """
 
     """
@@ -225,8 +225,27 @@ class CompilationEngine():
         Compiles a complete method, function or constructor
         :return:
         """
+
         self.symbol_table.start_subroutine()
-        self.symbol_table.define("this", self.class_name, "argument")
+
+
+
+        subroutine_type = self.tokenizer.keyWord()
+
+        if subroutine_type == "constructor":
+            self.compile_constructor()
+            # self.eat("constructor")
+        elif subroutine_type == "method":
+            self.compile_method()
+            self.symbol_table.define("this", self.class_name, "argument")
+            self.eat("method")
+        elif subroutine_type == "function":
+            pass
+            self.eat('function')
+
+
+
+
 
         # self.write('subroutineDec', delim=True)
         # self.num_spaces += 1
@@ -234,7 +253,7 @@ class CompilationEngine():
         # self.write_terminal(self.tokenizer.token_type().value, self.tokenizer.keyWord())
 
         # self.eat('function' | 'method' | 'constructor')
-        self.tokenizer.advance()
+        # self.tokenizer.advance()
 
         t_type = self.tokenizer.token_type()
         if t_type == Token_Types.keyword:
@@ -242,7 +261,8 @@ class CompilationEngine():
         else:
             func_type = self.tokenizer.identifier()
 
-        # todo: allocate memory based on return type
+
+
 
         # self.write_terminal(t_type.value, func_type)
 
@@ -252,6 +272,10 @@ class CompilationEngine():
         t_type, func_name = self.tokenizer.token_type(), self.tokenizer.identifier()
         # self.write_terminal(t_type.value, func_name)
         self.writer.write_label(func_name)
+
+        # self.writer.write_push(CONSTANT, 0)  #to#do: number of args?
+        # self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
+        # self.writer.write_pop(POINTER, 0)
 
         self.tokenizer.advance()
 
@@ -275,17 +299,7 @@ class CompilationEngine():
 
 
 
-        t_type = self.tokenizer.token_type()
-        while t_type != Token_Types.symbol:
-            token = self.tokenizer.keyWord()
-            if token == 'var':
-                self.compile_var_dec()
-            elif token in STATEMENTS:
-                self.compile_statements()
-            else:
-                raise KeyError("an unknown step inside a subroutine")
-            # self.tokenizer.advance()
-            t_type = self.tokenizer.token_type()
+
 
         # self.write_terminal(t_type.value, self.tokenizer.symbol())
         self.eat('}')
@@ -296,6 +310,60 @@ class CompilationEngine():
 
         # self.num_spaces -= 1
         # self.write('subroutineDec', delim=True, end=True)
+
+    def compile_constructor(self):
+        """
+        dedicated function for compiling a contructor only
+        :return:
+        """
+        self.eat("constructor")
+
+        self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
+        self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
+        self.writer.write_pop(POINTER, 0)
+
+        # make sure the constructor func returns a class instance
+        assert self.tokenizer.identifier() == self.class_name
+
+        self.tokenizer.advance()
+
+        self.eat("new")
+
+        self.eat('(')
+
+        self.compile_param_list()
+
+        self.eat(')')
+
+        self.eat('{')
+
+        self.compile_subroutine_body()
+
+        self.eat('}')
+
+
+
+
+    def compile_subroutine_body(self):
+        """
+
+        :return:
+        """
+        t_type = self.tokenizer.token_type()
+        while t_type != Token_Types.symbol:
+            token = self.tokenizer.keyWord()
+            if token == 'var':
+                self.compile_var_dec()
+            elif token in STATEMENTS:
+                self.compile_statements()
+            else:
+                raise KeyError("an unknown step inside a subroutine, ", t_type)
+            # self.tokenizer.advance()
+            t_type = self.tokenizer.token_type()
+
+
+
+
 
 
     def compile_param_list(self):
@@ -496,8 +564,8 @@ class CompilationEngine():
         Compile return statement.
         """
         self.eat('return')
-        self.num_spaces += 1
-        self.write("<keyword> return </keyword>")
+        # self.num_spaces += 1
+        # self.write("<keyword> return </keyword>")
 
         try:
             self.eat(';')
@@ -505,8 +573,10 @@ class CompilationEngine():
             self.compile_expression()
             self.eat(';')
 
-        self.write("<symbol> ; </symbol>")
-        self.num_spaces -= 1
+        self.writer.write_return()
+
+        # self.write("<symbol> ; </symbol>")
+        # self.num_spaces -= 1
 
 
     def compile_if(self):
@@ -587,16 +657,20 @@ class CompilationEngine():
 
         elif symbol == '.':
             self.eat('.')
-            self.write("<symbol> . </symbol>")
-
-            self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            # self.write("<symbol> . </symbol>")
+            called_func = self.tokenizer.identifier()
+            #
+            # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
             self.tokenizer.advance()
 
             self.eat('(')
-            self.write("<symbol> ( </symbol>")
+            # self.write("<symbol> ( </symbol>")
             self.compile_expression_list()
             self.eat(')')
-            self.write("<symbol> ) </symbol>")
+
+            self.writer.write_call(called_func, num_args=0) # need to find out how many
+            #  args
+            # self.write("<symbol> ) </symbol>")
 
         else:
             raise Exception("If there is a symbol in the subroutineCall it have to be . or (.")
@@ -623,10 +697,10 @@ class CompilationEngine():
         elif type == Token_Types.string_const:
             str_const = self.tokenizer.stringVal()
             self.writer.write_push(CONSTANT, len(str_const) - 1)
-            self.writer.write_call(BuildinFunctions.str_new, 1)
+            self.writer.write_call(BuiltinFunctions.str_new, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, ord(str_const[i]))
-                self.writer.write_call(BuildinFunctions.str_new.str_app_char, 1)
+                self.writer.write_call(BuiltinFunctions.str_new.str_app_char, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
