@@ -12,6 +12,7 @@ value and leave it at the top of the VM stack.
 from JackCompiler.SyntaxAnalyzer.JackTokenizer import JackTokenizer, Token_Types
 from JackCompiler import VMWriter
 from JackCompiler.SymbolTable import *
+from enum import Enum, unique
 
 END_LINE    = "\n"
 SPACE         = "  "
@@ -27,6 +28,22 @@ OPERANDS        = ['+', '-', '*', '&amp;', '|', '&lt;', '&gt;', '=', "/"]
 ROUTINES        = ['function', 'method', 'constructor']
 ARGS = 'argument'
 LOCAL = 'local'
+THIS = 'this'
+CONSTANT = "CONST"
+POINTER = "POINTER"
+
+
+@unique
+class BuildinFunctions(Enum):
+    """
+
+    """
+    str_new = "String.new"
+    str_app_char = "String.appendChar"
+    math_div = "Math.divide"
+    math_mult = "Math.multiply"
+    mem_alloc = "Memory.alloc"
+
 
 
 
@@ -563,10 +580,10 @@ class CompilationEngine():
         symbol = self.tokenizer.symbol()
         if symbol == '(':
             self.eat('(')
-            self.write("<symbol> ( </symbol>")
+            # self.write("<symbol> ( </symbol>")
             self.compile_expression_list()
             self.eat(')')
-            self.write("<symbol> ) </symbol>")
+            # self.write("<symbol> ) </symbol>")
 
         elif symbol == '.':
             self.eat('.')
@@ -595,43 +612,55 @@ class CompilationEngine():
         advanced over.
         :return:
         """
-        # self.buffer += SPACE * self.num_spaces + "<term>\n"
-        # self.num_spaces += 1
-
         type = self.tokenizer.token_type()
-        # maybe i should divide it for int and string
-        # If the token is a string_const or int_const
-        if type in [Token_Types.string_const, Token_Types.int_const] :
-            value = self.tokenizer.intVal() if type == Token_Types.int_const else self.tokenizer.stringVal()
-            # self.write("<" + type.value + "> " +
-            #            value +
-            #            " </" + type.value + ">", use_buffer=True)
+
+        # If the token is a int_const
+        if type == Token_Types.int_const :
+            self.writer.write_push(CONSTANT, self.tokenizer.intVal())
             self.tokenizer.advance()
 
-        
+        # If the token is a string_const
+        elif type == Token_Types.string_const:
+            str_const = self.tokenizer.stringVal()
+            self.writer.write_push(CONSTANT, len(str_const) - 1)
+            self.writer.write_call(BuildinFunctions.str_new, 1)
+            for i in range(len(str_const)):
+                self.writer.write_push(CONSTANT, int(str_const[i]))
+                self.writer.write_call(BuildinFunctions.str_new.str_app_char, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
-            if self.tokenizer.keyWord() in KEY_TERMS:
-                self.write("<" + type.value + "> " +
-                           self.tokenizer.keyWord() +
-                           " </" + type.value + ">", use_buffer=True)
-                self.tokenizer.advance()
+            word = self.tokenizer.keyWord()
+            if word in ["false", "null"]:
+                self.writer.write_push(CONSTANT, 0)
+            elif word == "true":
+                self.writer.write_push(CONSTANT, -1)
+            elif word == "this":
+                self.writer.write_push(POINTER, 0)
             else:
-                self.cleanbuffer()
                 raise Exception()
+            self.tokenizer.advance()
 
         # If the token is an identifier
         elif type == Token_Types.identifier:
-            # value = self.tokenizer.identifier()
-            self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>",
-                       use_buffer=True)
+            name = self.tokenizer.identifier()
+            kind, index = self.symbol_table.kind_of(name), self.symbol_table.index_of(name)
+            if kind == "field":
+                # Using 'this'
+                self.writer.write_push(POINTER, 0)
+                self.writer.write_push(THIS, index)
+            # kind = THIS if kind == "field" else kind
+
+            self.writer.write_push(kind, index)
             self.tokenizer.advance()
             self.possible_identifier_continue()
 
+
+
+
+
         # If the token is an symbol
         elif type == Token_Types.symbol:
-
             if self.tokenizer.symbol() == '(':
                 self.eat('(')
                 self.write("<symbol> ( </symbol>", use_buffer=True)
@@ -653,7 +682,7 @@ class CompilationEngine():
         self.num_spaces -= 1
         self.write("term", True, True)
 
-    def possible_identifier_continue(self):
+    def possible_identifier_continue(self, pre_term):
         """
         In a term if identifier continues with
         - '[' - it's a call of an array
@@ -662,18 +691,13 @@ class CompilationEngine():
         This functions handle every one of this situations after the original identifier was
         handled.
         """
-        # try:
-        #     self.eat("[")
-        # except:
-        # if not self.tokenizer.has_more_tokens(): # already doing it by itself
-        #     raise Exception()
         if self.tokenizer.token_type() == Token_Types.symbol:
+            # todo: make sure working with arrays works well.
             if self.tokenizer.symbol() == '[':
                 self.eat('[')
-                self.write("<symbol> [ </symbol>")
-                self.compile_expression()
+                self.compile_expression() # do i nead to make sure it's not const string?
                 self.eat(']')
-                self.write("<symbol> ] </symbol>")
+                self.writer.write_arithmetic('ADD')
                 return
 
             try:
