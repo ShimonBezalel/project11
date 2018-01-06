@@ -29,8 +29,9 @@ ROUTINES        = ['function', 'method', 'constructor']
 ARGS = 'argument'
 LOCAL = 'local'
 THIS = 'this'
-CONSTANT = "CONST"
-POINTER = "POINTER"
+THAT = 'that'
+CONSTANT = "constant"
+POINTER = "pointer"
 TEMP = "temp"
 
 
@@ -126,7 +127,7 @@ class CompilationEngine():
 
             t_type = self.tokenizer.token_type()
 
-        # todo: do i need here - self.eat('}')
+        # self.eat('}')
 
         # self.write_terminal(t_type.value, self.tokenizer.symbol())
         # self.num_spaces -= 1
@@ -478,9 +479,12 @@ class CompilationEngine():
                 index = self.symbol_table.index_of(call_apparatus)
                 self.writer.write_push(kind, index)
                 num_of_expressions += 1    # this adds a self arg as one of the arguments.
+                self.eat(".")
             else:   # this is an unrecognized class name
-                pass  #todo:what?
-            self.eat(".")
+                self.tokenizer.advance()
+                self.eat(".")
+                # self.subroutineCall_continue(call_apparatus, False)
+                call_apparatus += "." + self.tokenizer.identifier()
         else:  # encounters a subroutine only
             self.writer.write_push(POINTER, 0)
             # Add to this function name the class name
@@ -575,6 +579,7 @@ class CompilationEngine():
 
         if self.cur_func_type == "void":
             self.writer.write_push(CONSTANT, 0)
+            self.eat(';')
         else:
             try:
                 self.eat(';')
@@ -646,12 +651,12 @@ class CompilationEngine():
                 # There is an open bracket
                 self.tokenizer.advance()
                 self.compile_expression()
-
-                if self.tokenizer.token_type() == Token_Types.symbol:
-                    if self.tokenizer.symbol() == ')':
-                        self.tokenizer.advance()
-                else:
-                    raise Exception("There more '(' than ')', while compiling expression.")
+                self.eat(")")
+                # if self.tokenizer.token_type() == Token_Types.symbol: # maybe use eat
+                #     if self.tokenizer.symbol() == ')':
+                #         self.tokenizer.advance()
+                # else:
+                #     raise Exception("There more '(' than ')', while compiling expression.")
 
                 if not from_op_term:
                     self.possible_op_term()
@@ -720,10 +725,10 @@ class CompilationEngine():
         elif type == Token_Types.string_const:
             str_const = self.tokenizer.stringVal()
             self.writer.write_push(CONSTANT, len(str_const) - 1)
-            self.writer.write_call(BuiltinFunctions.str_new, 1)
+            self.writer.write_call(BuiltinFunctions.str_new.value, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, ord(str_const[i]))
-                self.writer.write_call(BuiltinFunctions.str_new.str_app_char, 1)
+                self.writer.write_call(BuiltinFunctions.str_app_char.value, 1)
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
@@ -790,16 +795,16 @@ class CompilationEngine():
                 try:
                     self.eat('=')
                 except Exception:
-                    self.writer.write_pop("pointer", 1)
-                    self.writer.write_push("that", 0)
+                    self.writer.write_pop(POINTER, 1)
+                    self.writer.write_push(THAT, 0)
                     return
 
                 # Handling A[a] = B[b] situation
                 self.compile_expression()
                 self.writer.write_pop(TEMP, 0)
-                self.writer.write_pop("pointer", 1)
+                self.writer.write_pop(POINTER, 1)
                 self.writer.write_push(TEMP, 0)
-                self.writer.write_pop("that", 0)
+                self.writer.write_pop(THAT, 0)
                 return
 
             try:
@@ -840,9 +845,9 @@ class CompilationEngine():
         elif op == '-':
             self.writer.write_arithmetic('sub')
         elif op == '*':
-            self.writer.write_call(BuiltinFunctions.math_mult, 0)
+            self.writer.write_call(BuiltinFunctions.math_mult.value, 2)
         elif op == '/':
-            self.writer.write_call(BuiltinFunctions.math_div, 0)
+            self.writer.write_call(BuiltinFunctions.math_div.value, 2)
         elif op == '=':
             self.writer.write_arithmetic('eq')
         elif op == '&gt':

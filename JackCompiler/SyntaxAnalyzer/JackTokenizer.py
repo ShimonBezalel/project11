@@ -138,7 +138,7 @@ class JackTokenizer():
         Any more tokens in input?
         :return: bool
         """
-        return self.cur_pos < len(self.tokens)
+        return self.cur_pos < len(self.tokens) - 1
 
         try:
             self.cur_type, self.cur_val = self.token_gen.__next__()
