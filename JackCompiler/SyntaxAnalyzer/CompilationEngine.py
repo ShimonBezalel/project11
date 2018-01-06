@@ -33,6 +33,7 @@ THAT = 'that'
 CONSTANT = "constant"
 POINTER = "pointer"
 TEMP = "temp"
+# NOT = "not"
 
 
 IF = 0
@@ -588,7 +589,7 @@ class CompilationEngine():
 
         self.compile_expression()
         self.eat(')')
-        self.writer.write_arithmetic("~")  #negate expression
+        self.writer.write_arithmetic("not")  #negate expression
         self.writer.write_if(label_continue)
 
         self.eat('{')
@@ -640,16 +641,19 @@ class CompilationEngine():
         self.eat('{')
         self.compile_statements()
         self.eat('}')
-        if self.tokenizer.lookahead("else"):
-            self.eat("else")
-            self.eat('{')
-            self.writer.write_goto(cont_label)
-            self.writer.write_label(false_label)
-            self.compile_statements()
-            self.eat('}')
-            self.writer.write_label(cont_label)
-        else:
-            self.writer.write_label(false_label)
+        if self.tokenizer.token_type() == Token_Types.keyword:
+            if self.tokenizer.keyWord() == "else":
+            # if self.tokenizer.lookahead("else"):
+                self.eat("else")
+                self.eat('{')
+                self.writer.write_goto(cont_label)
+                self.writer.write_label(false_label)
+                self.compile_statements()
+                self.eat('}')
+                self.writer.write_label(cont_label)
+                return
+        # else:
+        self.writer.write_label(false_label)
 
     # def possible_else(self):
     #     """
@@ -766,7 +770,8 @@ class CompilationEngine():
             if word in ["false", "null"]:
                 self.writer.write_push(CONSTANT, 0)
             elif word == "true":
-                self.writer.write_push(CONSTANT, -1)
+                self.writer.write_push(CONSTANT, 0)
+                self.writer.write_arithmetic("not")
             elif word == "this":
                 self.writer.write_push(POINTER, 0)
             else:
@@ -781,7 +786,7 @@ class CompilationEngine():
                 # Using 'this'
                 self.writer.write_push(POINTER, 0)
                 self.writer.write_push(THIS, index)
-            elif not kind:
+            elif kind:
                 self.writer.write_push(kind, index)
 
             is_object = True if index else False
@@ -796,7 +801,7 @@ class CompilationEngine():
                 # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>", use_buffer=True)
                 self.eat(self.tokenizer.symbol())
                 # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>")
-                self.compile_term()
+                self.compile_expression()
                 command = "neg" if self.tokenizer.symbol() == "-" else "not"
                 self.writer.write_arithmetic(command)
             else:
@@ -880,11 +885,11 @@ class CompilationEngine():
             self.writer.write_call(BuiltinFunctions.math_div.value, 2)
         elif op == '=':
             self.writer.write_arithmetic('eq')
-        elif op == '&gt':
+        elif op == '&gt;':
             self.writer.write_arithmetic('gt')
-        elif op == '&lt':
+        elif op == '&lt;':
             self.writer.write_arithmetic('lt')
-        elif op == '&amp':
+        elif op == '&amp;':
             self.writer.write_arithmetic('and')
         elif op == '|':
             self.writer.write_arithmetic('or')

@@ -91,7 +91,7 @@ class VMWriter:
 
         # todo: func
 
-        self.file.write("wtf" + name + " " + str(num_locals) + NEW_LINE)
+        self.file.write("function " + name + " " + str(num_locals) + NEW_LINE)
 
     def write_return(self):
         """
