@@ -31,6 +31,7 @@ LOCAL = 'local'
 THIS = 'this'
 CONSTANT = "CONST"
 POINTER = "POINTER"
+TEMP = "temp"
 
 
 IF = 0
@@ -780,15 +781,25 @@ class CompilationEngine():
         handled.
         """
         if self.tokenizer.token_type() == Token_Types.symbol:
-            # todo: make sure working with arrays works well.
-            # how to i handle A[a] = B[b]
             if self.tokenizer.symbol() == '[':
                 self.eat('[')
                 self.compile_expression() # do i nead to make sure it's not const string?
                 self.eat(']')
                 self.writer.write_arithmetic('add')
+
+                try:
+                    self.eat('=')
+                except Exception:
+                    self.writer.write_pop("pointer", 1)
+                    self.writer.write_push("that", 0)
+                    return
+
+                # Handling A[a] = B[b] situation
+                self.compile_expression()
+                self.writer.write_pop(TEMP, 0)
                 self.writer.write_pop("pointer", 1)
-                self.writer.write_push("that", 0)
+                self.writer.write_push(TEMP, 0)
+                self.writer.write_pop("that", 0)
                 return
 
             try:
@@ -812,8 +823,11 @@ class CompilationEngine():
         # There is op term
         self.tokenizer.advance()
         if self.tokenizer.token_type() == Token_Types.symbol:
-            if op == '(':
+            if self.tokenizer.symbol() == '(':
                 self.compile_expression(True)
+            else:
+                raise Exception("There was '" + self.tokenizer.symbol() +
+                                "' after a valid operator symbol '" + op + "'.")
         else:
             self.compile_term()
 
