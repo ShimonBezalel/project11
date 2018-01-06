@@ -628,22 +628,33 @@ class CompilationEngine():
         self.eat('}')
         self.write("<symbol> } </symbol>")
 
-    def compile_expression(self):
+    def compile_expression(self, from_op_term=False):
         """
         Compile an expression.
         :return:
         """
-        # self.buffer += self.num_spaces * SPACE + "<expression>\n"
-        # self.num_spaces += 1
-        try:
-            self.compile_term()
-            self.possible_op_term()
-            # self.num_spaces -= 1
-            # self.write("expression", True, True)
-        except:
-            self.cleanbuffer()
 
-    def subroutineCall_continue(self):
+        if self.tokenizer.token_type() == Token_Types.symbol:
+            if self.tokenizer.symbol() == '(':
+                # There is an open bracket
+                self.tokenizer.advance()
+                self.compile_expression()
+
+                if self.tokenizer.token_type() == Token_Types.symbol:
+                    if self.tokenizer.symbol() == ')':
+                        self.tokenizer.advance()
+                else:
+                    raise Exception("There more '(' than ')', while compiling expression.")
+
+                if not from_op_term:
+                    self.possible_op_term()
+                return
+
+        # There is no open bracket
+        self.compile_term()
+        self.possible_op_term()
+
+    def subroutineCall_continue(self, func, is_method):
         """
         After an identifier there can be a '.' or '(', otherwise it not function call
         (subroutineCall).
@@ -653,29 +664,29 @@ class CompilationEngine():
         symbol = self.tokenizer.symbol()
         if symbol == '(':
             self.eat('(')
-            # self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+            num_exp = self.compile_expression_list()
             self.eat(')')
-            # self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         elif symbol == '.':
             self.eat('.')
-            # self.write("<symbol> . </symbol>")
-            called_func = self.tokenizer.identifier()
-            self.writer.write_push(self.symbol_table.kind_of(called_func),
-                                   self.symbol_table.index_of(called_func))
-            # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            if is_method:
+                object = func # The object name
+                segment, index = self.symbol_table.kind_of(object), self.symbol_table.index_of(object)
+                # what is happening if the kind is field?
+                if segment == "field":
+                    self.writer.write_push(POINTER, 0)
+                    segment = THIS
+                self.writer.write_push(segment, index)
+                func = self.tokenizer.identifier()
+            else:
+                func += "." + self.tokenizer.identifier()
             self.tokenizer.advance()
 
             self.eat('(')
-            # self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+            num_exp = self.compile_expression_list()
             self.eat(')')
-
-            self.writer.write_call(called_func, num_args=0) #todo: need to find out how
-            # many
-            #  args
-            # self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         else:
             raise Exception("If there is a symbol in the subroutineCall it have to be . or (.")
@@ -825,9 +836,6 @@ class CompilationEngine():
         else:
             raise Exception(op + " is an invalid operation between 2 terms.") # wont happen according to the current use
 
-
-
-
     def compile_expression_list(self):
         """
         Compile a comma-separated list of expressions, which may be empty.
@@ -837,12 +845,12 @@ class CompilationEngine():
         except Exception:
             return 0
 
-        return self.possible_more_expression(1)
-
-    def possible_more_expression(self, exp_count):
         return self.possible_more_expression() + 1
-        # self.num_spaces -= 1
-        # self.write("expressionList", True, True)
+
+    # def possible_more_expression(self, exp_count):
+    #     return self.possible_more_expression() + 1
+    #     # self.num_spaces -= 1
+    #     # self.write("expressionList", True, True)
 
 
     def possible_more_expression(self):
@@ -853,13 +861,9 @@ class CompilationEngine():
         try:
             self.eat(',')
         except Exception:
-            return exp_count
-        # self.write("<symbol> , </symbol>")
             return 0
-        # self.write("<symbol> , </symbol>")
-        self.compile_expression()
 
-        return self.possible_more_expression(exp_count + 1)
+        self.compile_expression()
         return self.possible_more_expression() + 1
 
 
