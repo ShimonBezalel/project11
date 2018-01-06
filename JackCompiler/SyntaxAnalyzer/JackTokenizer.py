@@ -94,7 +94,9 @@ class Comp_Exp(Enum):
     """
 
     """
-    comment = re.compile("((\/\/.*)|(\/\*\*((([^*])*([^/])*)|(([^/])*([^*])*))\*\/))")
+    single_line_comment = re.compile("(\/\/.*)")
+    doc_string = re.compile("(\/\*\*((([^*])*([^/])*)|(([^/])*([^*])*))\*\/)")
+    # comment = re.compile("((\/\/.*)|(\/\*\*((([^*])*([^/])*)|(([^/])*([^*])*))\*\/))")
     string_single_line = re.compile("(\"((\\\\\")|([^\"]))*\")")
     keywords = re.compile(gen_keywords())
     symbols = re.compile(gen_symbols())
@@ -127,11 +129,17 @@ class JackTokenizer():
 
         self.cur_type, self.cur_val = None, None
 
+        self.tokens = list(self.token_gen)
+
+        self.cur_pos = -1
+
     def has_more_tokens(self):
         """
         Any more tokens in input?
         :return: bool
         """
+        return self.cur_pos < len(self.tokens)
+
         try:
             self.cur_type, self.cur_val = self.token_gen.__next__()
             self.wait = True
@@ -145,6 +153,10 @@ class JackTokenizer():
         has more tokens is true. There is no initial token in cur.
         :return:
         """
+        self.cur_pos += 1
+        self.cur_type, self.cur_val = self.tokens[self.cur_pos]
+        return
+
         if self.wait:
             self.wait = False
         else:
@@ -210,6 +222,16 @@ class JackTokenizer():
         while self.text:
             # In case of a token match, we yield it and substitute it from what is left
             # of the current line being read
+            comment_match = Comp_Exp.single_line_comment.value.match(self.text)
+            # todo: needs good comment implementation and testing
+            if comment_match:
+                self.text = self.text[comment_match.end():]
+                continue
+
+            docstring_match = Comp_Exp.doc_string.value.match(self.text)
+            if docstring_match:
+                self.text = self.text[docstring_match.end():]
+                continue
 
             string_match = Comp_Exp.string_single_line.value.match(self.text)
 
@@ -263,12 +285,6 @@ class JackTokenizer():
                 self.text = self.text[identifier_match.end():]
                 continue
 
-            comment_match = Comp_Exp.comment.value.match(self.text)
-            # todo: needs good comment implementation and testing
-            if comment_match:
-                self.text = self.text[comment_match.end()]
-                continue
-
             space_match = Comp_Exp.spaces.value.match(self.text)
             if space_match:
                 self.text = self.text[space_match.end():]
@@ -276,6 +292,22 @@ class JackTokenizer():
 
             else:
                 raise StopIteration("found impossible situation: " + self.text)
+
+    def lookahead(self, token, steps = 1):
+        """
+        Looks to see if the given token is the next token in the list of tokens,
+        up to "steps" number of steps forward. If the list limitation is exceeded by
+        the provided number of steps, then the steps are truncated.
+        :param token: any string
+        :param steps: number of steps to look forward. default is 1
+        :return: True or False, if the symbol is within the number of steps,
+        as an individual token
+        """
+        trunc = min(len(self.tokens), self.cur_pos + steps + 1)
+        for i in range(self.cur_pos + 1, trunc):
+            if token == self.tokens[i][1]:
+                return True
+        return False
 
 
 if __name__ == '__main__':
