@@ -33,6 +33,10 @@ CONSTANT = "CONST"
 POINTER = "POINTER"
 
 
+IF = 0
+WHILE = 1
+
+
 @unique
 class BuiltinFunctions(Enum):
     """
@@ -67,7 +71,7 @@ class CompilationEngine():
         # todo: Here we need to see if we open a new writer per class.
 
         self.writer = VMWriter.VMWriter(output_file)
-
+        self.__reset_label_counter()
         self.num_spaces = 0
         self.buffer = ""
         self.symbol_table = SymbolTable()
@@ -464,6 +468,7 @@ class CompilationEngine():
         # get variable / class name
         num_of_expressions = 0
         call_apparatus = self.tokenizer.identifier()
+        # self.tokenizer.advance()  #todo: advance here or not?
         # If we encountered a variable or class name   (class.subroutine)
         if self.tokenizer.lookahead("."):
             kind = self.symbol_table.kind_of(call_apparatus)
@@ -473,7 +478,7 @@ class CompilationEngine():
                 self.writer.write_push(kind, index)
                 num_of_expressions += 1    # this adds a self arg as one of the arguments.
             else:   # this is an unrecognized class name
-                pass
+                pass  #todo:what?
             self.eat(".")
         else:  # encounters a subroutine only
             self.writer.write_push(POINTER, 0)
@@ -542,24 +547,22 @@ class CompilationEngine():
         Compile while statement.
         """
         self.eat('while')
-        # self.write("<whileStatement>")
-        self.num_spaces += 1
-        self.write("<keyword> while </keyword>")
-
+        label_loop, label_continue = self.__gen_while_label()
+        self.writer.write_label(label_loop)
         self.eat('(')
-        self.write("<symbol> ( </symbol>")
+
         self.compile_expression()
         self.eat(')')
-        self.write("<symbol> ) </symbol>")
+        self.writer.write_arithmetic("~")  #negate expression
+        self.writer.write_if(label_continue)
 
         self.eat('{')
-        self.write("<symbol> { </symbol>")
         self.compile_statements()
         self.eat('}')
-        self.write("<symbol> } </symbol>")
 
-        self.num_spaces -= 1
-        # self.write("</whileStatement>")
+        self.writer.write_goto(label_loop)
+        self.writer.write_label(label_continue)
+
 
     def compile_return(self):
         """
@@ -588,26 +591,29 @@ class CompilationEngine():
         """
         Compile if statement.
         """
+        true_label, false_label, cont_label = self.__gen_if_label()
         self.eat('if')
-        # self.write("<ifStatement>")
-        self.num_spaces += 1
-        self.write("<keyword> if </keyword>")
 
         self.eat('(')
-        self.write("<symbol> ( </symbol>")
         self.compile_expression()
         self.eat(')')
-        self.write("<symbol> ) </symbol>")
+        self.writer.write_if(true_label)
+        self.writer.write_goto(false_label)
+        self.writer.write_label(true_label)
 
         self.eat('{')
-        self.write("<symbol> { </symbol>")
         self.compile_statements()
         self.eat('}')
-        self.write("<symbol> } </symbol>")
-        self.possible_else()
-
-        self.num_spaces -= 1
-        # self.write("</ifStatement>" + END_LINE)
+        if self.tokenizer.lookahead("else"):
+            self.eat("else")
+            self.eat('{')
+            self.writer.write_goto(cont_label)
+            self.writer.write_label(false_label)
+            self.compile_statements()
+            self.eat('}')
+            self.writer.write_label(cont_label)
+        else:
+            self.writer.write_label(false_label)
 
     def possible_else(self):
         """
@@ -620,13 +626,13 @@ class CompilationEngine():
             return
 
         # There is an else, so we handle it properly
-        self.write("<keyword> else </keyword>")
+
 
         self.eat('{')
-        self.write("<symbol> { </symbol>")
+
         self.compile_statements()
         self.eat('}')
-        self.write("<symbol> } </symbol>")
+
 
     def compile_expression(self, from_op_term=False):
         """
@@ -1019,7 +1025,19 @@ class CompilationEngine():
     #     else:
     #         self.write_recursive(type)
 
+    def __gen_while_label(self):
+        self.__label_counter[WHILE] += 1
+        return ("WHILE_LOOP" + str(self.__label_counter[WHILE]), "WHILE_CONT" + str(
+            self.__label_counter[WHILE]))
 
+
+    def __gen_if_label(self):
+        self.__label_counter[IF] += 1
+        return ("IF_TRUE" + str(self.__label_counter[IF]), "IF_FALSE" + str(
+            self.__label_counter[IF]), "IF_CONT" + str(self.__label_counter[IF]))
+
+    def __reset_label_counter(self):
+        self.__label_counter = [0, 0]
 
 
 
