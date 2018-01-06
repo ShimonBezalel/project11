@@ -259,20 +259,24 @@ class CompilationEngine():
         """
         self.eat("constructor")
 
+        # Compile function signature
+
         # make sure the constructor func returns a class instance
         assert self.tokenizer.identifier() == self.class_name
+
+        self.cur_func_type = self.class_name
+
         self.tokenizer.advance()
         self.eat("new")
 
         func_name = self.class_name + ".new"
+
         self.writer.write_label(func_name)
 
         self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
         self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
         self.writer.write_pop(POINTER, 0)
 
-        # make sure the constructor func returns a class instance
-        assert self.tokenizer.identifier() == self.class_name
 
     def compile_method(self):
         """
@@ -280,7 +284,7 @@ class CompilationEngine():
         :return:
         """
         self.eat("method")
-        self.compile_func_name()
+        self.compile_func_signature()
         self.symbol_table.define("this", self.class_name, "argument")
         self.writer.write_push(ARGS, 0)
         self.writer.write_pop(POINTER, 0)
@@ -292,21 +296,18 @@ class CompilationEngine():
         :return:
         """
         self.eat('function')
-        self.compile_func_name()
+        self.compile_func_signature()
 
-    def compile_func_name(self):
+    def compile_func_signature(self):
         """
 
         :return:
         """
         t_type = self.tokenizer.token_type()
         if t_type == Token_Types.keyword:
-            func_type = self.tokenizer.keyWord()
+            self.cur_func_type = self.tokenizer.keyWord()
         else:
-            func_type = self.tokenizer.identifier()
-
-        # todo: if function type is void, we need to force a return of constant 0 at
-        # the end, and pop to temp 0 after the function call.
+            self.cur_func_type = self.tokenizer.identifier()
 
         self.tokenizer.advance()
 
@@ -326,7 +327,11 @@ class CompilationEngine():
             if token == 'var':
                 self.compile_var_dec()
             elif token in STATEMENTS:
-                self.compile_statements()
+                # Direct control over return case. This may be unnecessary
+                if token == "return":
+                    self.compile_return()
+                else:
+                    self.compile_statements()
             else:
                 raise KeyError("an unknown step inside a subroutine, ", t_type)
             # self.tokenizer.advance()
@@ -536,11 +541,14 @@ class CompilationEngine():
         # self.num_spaces += 1
         # self.write("<keyword> return </keyword>")
 
-        try:
-            self.eat(';')
-        except: # would it work?
-            self.compile_expression()
-            self.eat(';')
+        if self.cur_func_type == "void":
+            self.writer.write_push(CONSTANT, 0)
+        else:
+            try:
+                self.eat(';')
+            except:  # would it work?
+                self.compile_expression()
+                self.eat(';')
 
         self.writer.write_return()
 
