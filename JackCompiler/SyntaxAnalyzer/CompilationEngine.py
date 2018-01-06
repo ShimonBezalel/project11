@@ -531,8 +531,6 @@ class CompilationEngine():
         self.eat(';')
         self.writer.write_call(call_apparatus, num_of_expressions)
         self.writer.write_pop("temp", 0)
-        # self.write("<symbol> ; </symbol>")
-        # self.num_spaces -= 1
 
 
     def compile_let(self):
