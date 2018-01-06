@@ -449,16 +449,18 @@ class CompilationEngine():
         Compile do statement.
         :return:
         """
-        self.eat('do')
-        self.num_spaces += 1
-        self.write("<keyword> do </keyword>")
-
         # is the check is necessary?  probably not..
         # if type != Token_Types.identifier:
         #     raise Exception()
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        value = self.tokenizer.identifier()
         self.tokenizer.advance()
-        self.subroutineCall_continue()
+
+        in_symbol_table = self.symbol_table.index_of(value) != None
+
+        # how to handle if it's an object?
+
+        self.subroutineCall_continue(self.tokenizer.identifier(), in_symbol_table)
 
         self.eat(';')
         self.write("<symbol> ; </symbol>")
@@ -600,22 +602,33 @@ class CompilationEngine():
         self.eat('}')
         self.write("<symbol> } </symbol>")
 
-    def compile_expression(self):
+    def compile_expression(self, from_op_term=False):
         """
         Compile an expression.
         :return:
         """
-        # self.buffer += self.num_spaces * SPACE + "<expression>\n"
-        # self.num_spaces += 1
-        try:
-            self.compile_term()
-            self.possible_op_term()
-            # self.num_spaces -= 1
-            # self.write("expression", True, True)
-        except:
-            self.cleanbuffer()
 
-    def subroutineCall_continue(self):
+        if self.tokenizer.token_type() == Token_Types.symbol:
+            if self.tokenizer.symbol() == '(':
+                # There is an open bracket
+                self.tokenizer.advance()
+                self.compile_expression()
+
+                if self.tokenizer.token_type() == Token_Types.symbol:
+                    if self.tokenizer.symbol() == ')':
+                        self.tokenizer.advance()
+                else:
+                    raise Exception("There more '(' than ')', while compiling expression.")
+
+                if not from_op_term:
+                    self.possible_op_term()
+                return
+
+        # There is no open bracket
+        self.compile_term()
+        self.possible_op_term()
+
+    def subroutineCall_continue(self, func, is_method):
         """
         After an identifier there can be a '.' or '(', otherwise it not function call
         (subroutineCall).
@@ -625,29 +638,29 @@ class CompilationEngine():
         symbol = self.tokenizer.symbol()
         if symbol == '(':
             self.eat('(')
-            # self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+            num_exp = self.compile_expression_list()
             self.eat(')')
-            # self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         elif symbol == '.':
             self.eat('.')
-            # self.write("<symbol> . </symbol>")
-            called_func = self.tokenizer.identifier()
-            self.writer.write_push(self.symbol_table.kind_of(called_func),
-                                   self.symbol_table.index_of(called_func))
-            # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+            if is_method:
+                object = func # The object name
+                segment, index = self.symbol_table.kind_of(object), self.symbol_table.index_of(object)
+                # what is happening if the kind is field?
+                if segment == "field":
+                    self.writer.write_push(POINTER, 0)
+                    segment = THIS
+                self.writer.write_push(segment, index)
+                func = self.tokenizer.identifier()
+            else:
+                func += "." + self.tokenizer.identifier()
             self.tokenizer.advance()
 
             self.eat('(')
-            # self.write("<symbol> ( </symbol>")
-            self.compile_expression_list()
+            num_exp = self.compile_expression_list()
             self.eat(')')
-
-            self.writer.write_call(called_func, num_args=0) #todo: need to find out how
-            # many
-            #  args
-            # self.write("<symbol> ) </symbol>")
+            self.writer.write_call(func, num_exp)
 
         else:
             raise Exception("If there is a symbol in the subroutineCall it have to be . or (.")
@@ -700,40 +713,32 @@ class CompilationEngine():
                 # Using 'this'
                 self.writer.write_push(POINTER, 0)
                 self.writer.write_push(THIS, index)
-            # kind = THIS if kind == "field" else kind
+            elif not kind:
+                self.writer.write_push(kind, index)
 
-            self.writer.write_push(kind, index)
+            is_object = True if index else False
             self.tokenizer.advance()
-            self.possible_identifier_continue()
-
-
-
-
+            self.possible_identifier_continue(name, is_object)
 
         # If the token is an symbol
         elif type == Token_Types.symbol:
             if self.tokenizer.symbol() == '(':
-                self.eat('(')
-                self.write("<symbol> ( </symbol>", use_buffer=True)
                 self.compile_expression()
-                self.eat(')')
-                self.write("<symbol> ) </symbol>")
             elif self.tokenizer.symbol() in ["-", "~"]:
-                self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>", use_buffer=True)
+                # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>", use_buffer=True)
                 self.eat(self.tokenizer.symbol())
                 # self.write("<symbol> " + self.tokenizer.symbol() + " </symbol>")
                 self.compile_term()
+                command = "neg" if self.tokenizer.symbol() == "-" else "not"
+                self.writer.write_arithmetic(command)
             else:
-                self.cleanbuffer()
+                # self.cleanbuffer()
                 raise Exception()
 
         else:
             raise Exception("Invalid token for creating term.")
 
-        self.num_spaces -= 1
-        self.write("term", True, True)
-
-    def possible_identifier_continue(self, pre_term=None):
+    def possible_identifier_continue(self, identifier_val, is_obj):
         """
         In a term if identifier continues with
         - '[' - it's a call of an array
@@ -744,15 +749,18 @@ class CompilationEngine():
         """
         if self.tokenizer.token_type() == Token_Types.symbol:
             # todo: make sure working with arrays works well.
+            # how to i handle A[a] = B[b]
             if self.tokenizer.symbol() == '[':
                 self.eat('[')
                 self.compile_expression() # do i nead to make sure it's not const string?
                 self.eat(']')
-                self.writer.write_arithmetic('ADD')
+                self.writer.write_arithmetic('add')
+                self.writer.write_pop("pointer", 1)
+                self.writer.write_push("that", 0)
                 return
 
             try:
-                self.subroutineCall_continue()
+                self.subroutineCall_continue(identifier_val, is_obj)
             except Exception:
                 # raise Exception("If there is a symbol in the token it have to be . or [ or (.")
                 return
@@ -764,47 +772,59 @@ class CompilationEngine():
         """
         # There is no op term
         if self.tokenizer.token_type() != Token_Types.symbol:
-            # raise Exception("After term can be only nothing or (op term)*.")
             return
         op = self.tokenizer.symbol()
-
         if op not in OPERANDS:
-            # raise Exception("Invalid operator use in term.")
-            return # should it be like this?
-
-        try:
-            # if op in SPECIAL_SYMBOL.keys():
-            #     op = SPECIAL_SYMBOL[op]
-            self.eat(op)
-        except Exception:
             return
-        # There is op term
-        self.write("<symbol> " + op + " </symbol>")
-        self.compile_term()
 
+        # There is op term
+        self.tokenizer.advance()
+        if self.tokenizer.token_type() == Token_Types.symbol:
+            if op == '(':
+                self.compile_expression(True)
+        else:
+            self.compile_term()
+
+        self.handle_op(op)
         self.possible_op_term()
+
+    def handle_op(self, op):
+        if op == '+':
+            self.writer.write_arithmetic('add')
+        elif op == '-':
+            self.writer.write_arithmetic('sub')
+        elif op == '*':
+            self.writer.write_call(BuiltinFunctions.math_mult, 0)
+        elif op == '/':
+            self.writer.write_call(BuiltinFunctions.math_div, 0)
+        elif op == '=':
+            self.writer.write_arithmetic('eq')
+        elif op == '&gt':
+            self.writer.write_arithmetic('gt')
+        elif op == '&lt':
+            self.writer.write_arithmetic('lt')
+        elif op == '&amp':
+            self.writer.write_arithmetic('and')
+        elif op == '|':
+            self.writer.write_arithmetic('or')
+        else:
+            raise Exception(op + " is an invalid operation between 2 terms.") # wont happen according to the current use
+
+
+
 
     def compile_expression_list(self):
         """
         Compile a comma-separated list of expressions, which may be empty.
         """
-        # self.write("expressionList", True)
-        # self.num_spaces += 1
-
         try:
             self.compile_expression()
         except Exception:
-            # self.num_spaces -= 1
-            # self.write("expressionList", True, True)
-            return
+            return 0
 
+        return self.possible_more_expression(1)
 
-
-        self.possible_more_expression()
-        # self.num_spaces -= 1
-        # self.write("expressionList", True, True)
-
-    def possible_more_expression(self):
+    def possible_more_expression(self, exp_count):
         """
         If the next token is a ',' than compile more expressions,
         otherwise return nothing.
@@ -812,11 +832,11 @@ class CompilationEngine():
         try:
             self.eat(',')
         except Exception:
-            return
-        self.write("<symbol> , </symbol>")
+            return exp_count
+        # self.write("<symbol> , </symbol>")
         self.compile_expression()
 
-        self.possible_more_expression()
+        return self.possible_more_expression(exp_count + 1)
 
 #-------------------------------------------------------------------------------------
     def write(self, statement, delim = False, end = False, new_line=True,
