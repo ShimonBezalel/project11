@@ -98,8 +98,7 @@ class VMWriter:
         write a return command
         :return:
         """
-        # todo: return
-        pass
+        self.file.write("return" + NEW_LINE)
 
 
     def close(self):
