@@ -615,23 +615,23 @@ class CompilationEngine():
         else:
             self.writer.write_label(false_label)
 
-    def possible_else(self):
-        """
-        Compile 0 or 1 else sections.
-        """
-        try:
-            self.eat('else')
-        except:
-            # There is no else so we can return
-            return
-
-        # There is an else, so we handle it properly
-
-
-        self.eat('{')
-
-        self.compile_statements()
-        self.eat('}')
+    # def possible_else(self):
+    #     """
+    #     Compile 0 or 1 else sections.
+    #     """
+    #     try:
+    #         self.eat('else')
+    #     except:
+    #         # There is no else so we can return
+    #         return
+    #
+    #     # There is an else, so we handle it properly
+    #
+    #
+    #     self.eat('{')
+    #
+    #     self.compile_statements()
+    #     self.eat('}')
 
 
     def compile_expression(self, from_op_term=False):
