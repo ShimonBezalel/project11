@@ -240,11 +240,13 @@ class CompilationEngine():
 
         # Read opening line of function up to parameter list and compile accordingly
         if subroutine_type == "constructor":
-            self.compile_constructor()
+            name = self.compile_constructor()
         elif subroutine_type == "method":
-            self.compile_method()
+            name = self.compile_method()
         elif subroutine_type == "function":
-            self.compile_function()
+            name = self.compile_function()
+        else:
+            raise KeyError("Got some illegal subroutine type: {}".format(subroutine_type))
 
         self.eat('(')
 
@@ -254,7 +256,14 @@ class CompilationEngine():
 
         self.eat('{')
 
-        # Including return
+        # Compiles all the var decelerations so we know how many locals this function
+        # defines
+        self.compile_var_declarations()
+
+        # Finally we can declare the function
+        self.writer.write_function(name, self.symbol_table.var_count("local"))
+
+        # Compiles the rest of the code, including return
         self.compile_subroutine_body()
 
         self.eat('}')
@@ -278,11 +287,15 @@ class CompilationEngine():
 
         func_name = self.class_name + ".new"
 
-        self.writer.write_label(func_name)
+        # return func_name
+
+        # self.writer.write_function(func_name)
 
         self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
         self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
         self.writer.write_pop(POINTER, 0)
+
+        return func_name
 
 
     def compile_method(self):
@@ -291,10 +304,12 @@ class CompilationEngine():
         :return:
         """
         self.eat("method")
-        self.compile_func_signature()
+
         self.symbol_table.define("this", self.class_name, "argument")
         self.writer.write_push(ARGS, 0)
         self.writer.write_pop(POINTER, 0)
+
+        return self.compile_func_signature()
 
 
     def compile_function(self):
@@ -303,7 +318,7 @@ class CompilationEngine():
         :return:
         """
         self.eat('function')
-        self.compile_func_signature()
+        return self.compile_func_signature()
 
     def compile_func_signature(self):
         """
@@ -319,9 +334,26 @@ class CompilationEngine():
         self.tokenizer.advance()
 
         func_name = self.class_name + "." + self.tokenizer.identifier()
-        self.writer.write_label(func_name)
 
         self.tokenizer.advance()
+        return func_name
+
+    def compile_var_declarations(self):
+        """
+
+        :return:
+        """
+        t_type = self.tokenizer.token_type()
+        while t_type != Token_Types.symbol:
+            token = self.tokenizer.keyWord()
+            if token == 'var':
+                self.compile_var_dec()
+            elif token in STATEMENTS:
+                break
+            else:
+                raise KeyError("an unknown step inside a subroutine, ", t_type)
+            t_type = self.tokenizer.token_type()
+
 
     def compile_subroutine_body(self):
         """
@@ -388,7 +420,6 @@ class CompilationEngine():
             var_type = self.tokenizer.keyWord()
             if var_type not in ["int", "char", "boolean"]:
                 raise Exception("Cant compile variable declaration with invalid keyword type.")
-            self.write("<keyword> " + var_type + " </keyword>")
             self.tokenizer.advance()
         elif self.tokenizer.token_type() == Token_Types.identifier:
             var_type = self.tokenizer.identifier()
