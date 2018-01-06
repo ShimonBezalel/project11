@@ -498,17 +498,19 @@ class CompilationEngine():
         Compile return statement.
         """
         self.eat('return')
-        self.num_spaces += 1
-        self.write("<keyword> return </keyword>")
+        # self.num_spaces += 1
+        # self.write("<keyword> return </keyword>")
 
         try:
             self.eat(';')
         except: # would it work?
             self.compile_expression()
             self.eat(';')
-
-        self.write("<symbol> ; </symbol>")
-        self.num_spaces -= 1
+        if self.cur_function_type == "void":
+            self.writer.write_push(CONSTANT, 0)
+        self.writer.write_return()
+        # self.write("<symbol> ; </symbol>")
+        # self.num_spaces -= 1
 
 
     def compile_if(self):
