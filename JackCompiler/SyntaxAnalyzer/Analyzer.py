@@ -2,7 +2,7 @@
 
 """
 
-from SyntaxAnalyzer.Parser import CompilationEngine
+from JackCompiler.SyntaxAnalyzer.CompilationEngine import CompilationEngine
 
 from JackCompiler.SyntaxAnalyzer.JackTokenizer import JackTokenizer
 
