@@ -600,6 +600,9 @@ class CompilationEngine():
                 object = func # The object name
                 segment, index = self.symbol_table.kind_of(object), self.symbol_table.index_of(object)
                 # what is happening if the kind is field?
+                if segment == "field":
+                    self.writer.write_push(POINTER, 0)
+                    segment = THIS
                 self.writer.write_push(segment, index)
                 func = self.tokenizer.identifier()
             else:
@@ -607,7 +610,6 @@ class CompilationEngine():
             self.tokenizer.advance()
 
             self.eat('(')
-
             num_exp = self.compile_expression_list()
             self.eat(')')
             self.writer.write_call(func, num_exp)
@@ -656,7 +658,8 @@ class CompilationEngine():
             self.tokenizer.advance()
 
         # If the token is an identifier
-        elif type == Token_Types.identifier: # todo: needs improvement
+        elif type == Token_Types.identifier:
+            # assumption: a name of a function or a class cant be a variable in the symbol_table.
             name = self.tokenizer.identifier()
             kind, index = self.symbol_table.kind_of(name), self.symbol_table.index_of(name)
             if kind == "field":
@@ -666,11 +669,9 @@ class CompilationEngine():
             elif not kind:
                 self.writer.write_push(kind, index)
 
-            is_object = True if kind == "field" else False
+            is_object = True if index else False
             self.tokenizer.advance()
-            self.possible_identifier_continue(is_object)
-
-
+            self.possible_identifier_continue(name, is_object)
 
         # If the token is an symbol
         elif type == Token_Types.symbol:
@@ -690,7 +691,7 @@ class CompilationEngine():
         else:
             raise Exception("Invalid token for creating term.")
 
-    def possible_identifier_continue(self, is_obj):
+    def possible_identifier_continue(self, identifier_val, is_obj):
         """
         In a term if identifier continues with
         - '[' - it's a call of an array
@@ -701,15 +702,18 @@ class CompilationEngine():
         """
         if self.tokenizer.token_type() == Token_Types.symbol:
             # todo: make sure working with arrays works well.
+            # how to i handle A[a] = B[b]
             if self.tokenizer.symbol() == '[':
                 self.eat('[')
                 self.compile_expression() # do i nead to make sure it's not const string?
                 self.eat(']')
-                self.writer.write_arithmetic('ADD')
+                self.writer.write_arithmetic('add')
+                self.writer.write_pop("pointer", 1)
+                self.writer.write_push("that", 0)
                 return
 
             try:
-                self.subroutineCall_continue(is_obj)
+                self.subroutineCall_continue(identifier_val, is_obj)
             except Exception:
                 # raise Exception("If there is a symbol in the token it have to be . or [ or (.")
                 return
