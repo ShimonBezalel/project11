@@ -74,7 +74,7 @@ class CompilationEngine():
         # with open(output_file, 'w') as self.output:
         while self.tokenizer.has_more_tokens():
             self.tokenizer.advance()
-            assert self.tokenizer.token_type() == Token_Types.keyword
+            # assert self.tokenizer.token_type() == Token_Types.keyword
             if self.tokenizer.keyWord() == 'class':
                 self.class_name = None
                 self.compile_class()
@@ -82,6 +82,7 @@ class CompilationEngine():
                 raise KeyError("Received a token that does not fit the beginning of a "
                                "module. " + self.tokenizer.keyWord()
                                + " in " + input_file)
+        self.writer.close()
 
     def compile_class(self):
         """
@@ -450,19 +451,46 @@ class CompilationEngine():
         :return:
         """
         self.eat('do')
-        self.num_spaces += 1
-        self.write("<keyword> do </keyword>")
+
+
+        # self.num_spaces += 1
+        # self.write("<keyword> do </keyword>")
 
         # is the check is necessary?  probably not..
         # if type != Token_Types.identifier:
         #     raise Exception()
-        self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
+
+        # get variable / class name
+        num_of_expressions = 0
+        call_apparatus = self.tokenizer.identifier()
+        # If we encountered a variable or class name   (class.subroutine)
+        if self.tokenizer.lookahead("."):
+            kind = self.symbol_table.kind_of(call_apparatus)
+            if kind: # this is a recognized variable name
+                type = self.symbol_table.type_of(call_apparatus)  #todo: what do i do with type
+                index = self.symbol_table.index_of(call_apparatus)
+                self.writer.write_push(kind, index)
+                num_of_expressions += 1    # this adds a self arg as one of the arguments.
+            else:   # this is an unrecognized class name
+                pass
+            self.eat(".")
+        else:  # encounters a subroutine only
+            self.writer.write_push(POINTER, 0)
+            # Add to this function name the class name
+            call_apparatus = self.class_name + "." + call_apparatus
+            num_of_expressions += 1
         self.tokenizer.advance()
-        self.subroutineCall_continue()
+        self.eat('(')
+        num_of_expressions += self.compile_expression_list()
+        self.eat(')')
+        # self.subroutineCall_continue()
+        self.writer.write_pop("temp", 0)
 
         self.eat(';')
-        self.write("<symbol> ; </symbol>")
-        self.num_spaces -= 1
+        self.writer.write_call(call_apparatus, num_of_expressions)
+        # self.write("<symbol> ; </symbol>")
+        # self.num_spaces -= 1
 
 
     def compile_let(self):
@@ -790,19 +818,17 @@ class CompilationEngine():
         """
         # self.write("expressionList", True)
         # self.num_spaces += 1
-
         try:
             self.compile_expression()
         except Exception:
             # self.num_spaces -= 1
             # self.write("expressionList", True, True)
-            return
+            return 0
 
-
-
-        self.possible_more_expression()
+        return self.possible_more_expression() + 1
         # self.num_spaces -= 1
         # self.write("expressionList", True, True)
+
 
     def possible_more_expression(self):
         """
@@ -812,11 +838,12 @@ class CompilationEngine():
         try:
             self.eat(',')
         except Exception:
-            return
-        self.write("<symbol> , </symbol>")
+            return 0
+        # self.write("<symbol> , </symbol>")
         self.compile_expression()
 
-        self.possible_more_expression()
+        return self.possible_more_expression() + 1
+
 
 #-------------------------------------------------------------------------------------
     def write(self, statement, delim = False, end = False, new_line=True,

@@ -67,7 +67,7 @@ def main(path, no_tokenize=True, no_compile=False):
                 analyzer.tokenize(jack_file, dest_file_name)
 
             if not no_compile:
-                dest_file_name = parse_filename(jack_file, FILE_EXTENSION_XML)
+                dest_file_name = parse_filename(jack_file, FILE_EXTENSION_VM)
                 # analyzer.compile(jack_file, dest_file_name)
                 compiler.compile(jack_file, dest_file_name)
 

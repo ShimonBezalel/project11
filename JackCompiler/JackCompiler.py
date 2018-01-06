@@ -13,7 +13,7 @@ Include testing modules.
 
 
 """
-
+from JackCompiler.SyntaxAnalyzer.CompilationEngine import CompilationEngine
 
 class Compiler:
 
@@ -23,4 +23,4 @@ class Compiler:
 
 
     def compile(self, jack_file, dest_file_name):
-        pass
+        jack_compiler = CompilationEngine(jack_file, dest_file_name)
