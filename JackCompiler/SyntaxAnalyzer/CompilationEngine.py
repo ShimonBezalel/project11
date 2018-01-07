@@ -511,6 +511,7 @@ class CompilationEngine():
                 index = self.symbol_table.index_of(call_apparatus)
                 self.writer.write_push(kind, index)
                 num_of_expressions += 1    # this adds a self arg as one of the arguments.
+                self.tokenizer.advance()
                 self.eat(".")
             else:   # this is an unrecognized class name
                 self.tokenizer.advance()
@@ -522,7 +523,7 @@ class CompilationEngine():
             # Add to this function name the class name
             call_apparatus = self.class_name + "." + call_apparatus
             num_of_expressions += 1
-        self.tokenizer.advance()
+            self.tokenizer.advance()
         self.eat('(')
         num_of_expressions += self.compile_expression_list()
         self.eat(')')
