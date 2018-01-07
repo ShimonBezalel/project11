@@ -83,13 +83,13 @@ class SymbolTable:
             num = self.class_table.counters[kind]
             self.class_table.counters[kind] += 1
             self.class_table.table[name] = [type, kind, num]
-        if kind in ["argument", "local"]:
+        elif kind in ["argument", "local"]:
             assert name not in self.subroutine_tables[-1].table.keys()
             num = self.subroutine_tables[-1].counters[kind]
             self.subroutine_tables[-1].counters[kind] += 1
             self.subroutine_tables[-1].table[name] = [type, kind, num]
         else:
-            raise ValueError("{} is an unrecognized type to define in the symbol "
+            raise ValueError("'{}' is an unrecognized type to define in the symbol "
                              "table".format(kind))
 
     def var_count(self, kind):

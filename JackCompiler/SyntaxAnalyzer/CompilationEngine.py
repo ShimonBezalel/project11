@@ -502,36 +502,44 @@ class CompilationEngine():
         # get variable / class name
         num_of_expressions = 0
         call_apparatus = self.tokenizer.identifier()
+        self.tokenizer.advance()
+        self.subroutineCall_continue(call_apparatus, self.symbol_table.index_of(call_apparatus))
         # self.tokenizer.advance()  #todo: advance here or not?
         # If we encountered a variable or class name   (class.subroutine)
-        if self.tokenizer.lookahead("."):
-            kind = self.symbol_table.kind_of(call_apparatus)
-            if kind: # this is a recognized variable name
-                type = self.symbol_table.type_of(call_apparatus)  #todo: what do i do with type
-                index = self.symbol_table.index_of(call_apparatus)
-                self.writer.write_push(kind, index)
-                num_of_expressions += 1    # this adds a self arg as one of the arguments.
-                self.tokenizer.advance()
-                self.eat(".")
-            else:   # this is an unrecognized class name
-                self.tokenizer.advance()
-                self.eat(".")
-                # self.subroutineCall_continue(call_apparatus, False)
-                call_apparatus += "." + self.tokenizer.identifier()
-        else:  # encounters a subroutine only
-            self.writer.write_push(POINTER, 0)
-            # Add to this function name the class name
-            call_apparatus = self.class_name + "." + call_apparatus
-            num_of_expressions += 1
-            self.tokenizer.advance()
-        self.eat('(')
-        num_of_expressions += self.compile_expression_list()
-        self.eat(')')
-        # self.subroutineCall_continue()
+        # if self.tokenizer.lookahead("."):
+        #     kind = self.symbol_table.kind_of(call_apparatus)
+        #     if kind:  # this is a recognized variable name
+        #         type = self.symbol_table.type_of(
+        #             call_apparatus)  # todo: what do i do with type
+        #         self.subroutineCall_continue(call_apparatus, True)
+        #
+        #         # index = self.symbol_table.index_of(call_apparatus)
+        #         # self.writer.write_push(kind, index)
+        #         # num_of_expressions += 1    # this adds a self arg as one of the arguments.
+        #         self.tokenizer.advance()
+        #         # self.eat(".")
+        #     else:   # this is an unrecognized class name
+        #         self.subroutineCall_continue(call_apparatus, False)
+        #         self.tokenizer.advance()
+        #         # self.eat(".")
+        #         # self.subroutineCall_continue(call_apparatus, False)
+        #         # call_apparatus += "." + self.tokenizer.identifier()
+        # else:  # encounters a subroutine only
+        #     self.subroutineCall_continue(call_apparatus, False)
+        #     self.writer.write_push(POINTER, 0)
+        #     # Add to this function name the class name
+        #     call_apparatus = self.class_name + "." + call_apparatus
+        #     num_of_expressions += 1 # todo: might need to remove an extra exp...
+        #     self.tokenizer.advance()
+        #
+        # self.eat('(')
+        # num_of_expressions += self.compile_expression_list()
+        # self.eat(')')
+
         # self.writer.write_pop("temp", 0)
 
         self.eat(';')
-        self.writer.write_call(call_apparatus, num_of_expressions)
+        # self.writer.write_call(call_apparatus, num_of_expressions)
         self.writer.write_pop("temp", 0)
 
 
@@ -709,29 +717,31 @@ class CompilationEngine():
         """
         # should i check every time if it's type symbol?
         symbol = self.tokenizer.symbol()
+        num_exp = 0
         if symbol == '(':
             self.eat('(')
-            num_exp = self.compile_expression_list()
+            num_exp += self.compile_expression_list()
             self.eat(')')
             self.writer.write_call(func, num_exp)
 
         elif symbol == '.':
             self.eat('.')
             if is_method:
-                object = func # The object name
+                object = func  # The object name
                 segment, index = self.symbol_table.kind_of(object), self.symbol_table.index_of(object)
                 # what is happening if the kind is field?
                 if segment == "field":
                     self.writer.write_push(POINTER, 0)
                     segment = THIS
                 self.writer.write_push(segment, index)
+                num_exp += 1
                 func = self.tokenizer.identifier()
-            else:
+            else:   # is class function
                 func += "." + self.tokenizer.identifier()
             self.tokenizer.advance()
 
             self.eat('(')
-            num_exp = self.compile_expression_list()
+            num_exp += self.compile_expression_list()
             self.eat(')')
             self.writer.write_call(func, num_exp)
 
