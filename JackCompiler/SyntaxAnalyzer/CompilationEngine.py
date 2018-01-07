@@ -284,9 +284,12 @@ class CompilationEngine():
         self.cur_func_type = self.class_name
 
         self.tokenizer.advance()
-        self.eat("new")
+        # self.eat("new")
+        func_name = self.tokenizer.identifier()
 
-        func_name = self.class_name + ".new"
+        func_name = self.class_name + "." + func_name
+
+        self.tokenizer.advance()
 
         # return func_name
 
