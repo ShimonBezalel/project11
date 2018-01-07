@@ -576,7 +576,7 @@ class CompilationEngine():
             self.compile_expression()
 
         self.eat(';')
-
+        segment = THIS if segment == 'field' else segment
         self.writer.write_pop(segment, index)
         # self.write("<symbol> ; </symbol>")
         # self.num_spaces -= 1
@@ -835,7 +835,7 @@ class CompilationEngine():
             kind, index = self.symbol_table.kind_of(name), self.symbol_table.index_of(name)
             if kind == "field":
                 # Using 'this'
-                self.writer.write_push(POINTER, 0)
+                # self.writer.write_push(POINTER, 0)
                 self.writer.write_push(THIS, index)
             elif kind:
                 self.writer.write_push(kind, index)
