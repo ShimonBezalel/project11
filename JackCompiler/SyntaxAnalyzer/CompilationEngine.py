@@ -562,17 +562,18 @@ class CompilationEngine():
         symbol = self.tokenizer.identifier()
         segment = self.symbol_table.kind_of(symbol)
         index = self.symbol_table.index_of(symbol)
-        # todo: need to write this symbol. if its a field need to add "push this 0"
-        # self.compile_var_dec()
-        # self.write("<identifier> " + self.tokenizer.identifier() + " </identifier>")
-        # self.write_terminal("identifier", self.tokenizer.identifier())
+        if segment == "field":
+            # Using 'this'
+            self.writer.write_push(POINTER, 0)
+            self.writer.write_push(THIS, index)
+        elif segment:
+            self.writer.write_push(segment, index)
         self.tokenizer.advance()
-        self.possible_array()
 
-        self.eat('=')
-        # self.write("<symbol> = </symbol>")
-
-        self.compile_expression()
+        used_eq = self.possible_array(symbol)
+        if not used_eq:
+            self.eat('=')
+            self.compile_expression()
 
         self.eat(';')
 
@@ -581,7 +582,7 @@ class CompilationEngine():
         # self.num_spaces -= 1
         # self.write("</letStatement>")
 
-    def possible_array(self):
+    def possible_array(self, symbol):
         """
         Compile 0 or 1 array.
         """
@@ -589,12 +590,40 @@ class CompilationEngine():
             self.eat('[')
         except:
             # There is no array
-            return
-        # There is an array
-        self.write("<symbol> [ </symbol>")
+            return False
+        # # There is an array
+        # # self.write("<symbol> [ </symbol>")
+        # self.compile_expression()
+        # self.eat(']')
+        # # self.write("<symbol> ] </symbol>")
+        # Handling an array
+        # Pushing the array name
+        # kind, index = self.symbol_table.kind_of(symbol), self.symbol_table.index_of(symbol)
+        # if kind == "field":
+        #     # Using 'this'
+        #     self.writer.write_push(POINTER, 0)
+        #     self.writer.write_push(THIS, index)
+        # elif kind:
+        #     self.writer.write_push(kind, index)
+
         self.compile_expression()
         self.eat(']')
-        self.write("<symbol> ] </symbol>")
+        self.writer.write_arithmetic('add')
+
+        try:
+            self.eat('=')
+        except Exception:
+            self.writer.write_pop(POINTER, 1)
+            self.writer.write_push(THAT, 0)
+            return False
+
+        # Handling A[a] = B[b] situation
+        self.compile_expression()
+        self.writer.write_pop(TEMP, 0)
+        self.writer.write_pop(POINTER, 1)
+        self.writer.write_push(TEMP, 0)
+        self.writer.write_pop(THAT, 0)
+        return True
 
     def compile_while(self):
         """
@@ -779,11 +808,12 @@ class CompilationEngine():
         # If the token is a string_const
         elif type == Token_Types.string_const:
             str_const = self.tokenizer.stringVal()
-            self.writer.write_push(CONSTANT, len(str_const) - 1)
+            self.writer.write_push(CONSTANT, len(str_const)) # len(str_const) - 1
             self.writer.write_call(BuiltinFunctions.str_new.value, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, ord(str_const[i]))
                 self.writer.write_call(BuiltinFunctions.str_app_char.value, 1)
+            self.tokenizer.advance()
 
         # If the token is a keyword
         elif type == Token_Types.keyword:
