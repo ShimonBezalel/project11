@@ -264,6 +264,11 @@ class CompilationEngine():
         # Finally we can declare the function
         self.writer.write_function(name, self.symbol_table.var_count("local"))
 
+        if subroutine_type == "constructor":
+            self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
+            self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
+            self.writer.write_pop(POINTER, 0)
+
         # Compiles the rest of the code, including return
         self.compile_subroutine_body()
 
@@ -295,9 +300,9 @@ class CompilationEngine():
 
         # self.writer.write_function(func_name)
 
-        self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
-        self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
-        self.writer.write_pop(POINTER, 0)
+        # self.writer.write_push(CONSTANT, self.symbol_table.var_count("field"))
+        # self.writer.write_call(BuiltinFunctions.mem_alloc.value, num_args=1)
+        # self.writer.write_pop(POINTER, 0)
 
         return func_name
 
@@ -506,7 +511,8 @@ class CompilationEngine():
         num_of_expressions = 0
         call_apparatus = self.tokenizer.identifier()
         self.tokenizer.advance()
-        self.subroutineCall_continue(call_apparatus, self.symbol_table.index_of(call_apparatus))
+        self.subroutineCall_continue(call_apparatus, self.symbol_table.index_of(
+            call_apparatus) != None)
         # self.tokenizer.advance()  #todo: advance here or not?
         # If we encountered a variable or class name   (class.subroutine)
         # if self.tokenizer.lookahead("."):
@@ -738,7 +744,8 @@ class CompilationEngine():
                     segment = THIS
                 self.writer.write_push(segment, index)
                 num_exp += 1
-                func = self.tokenizer.identifier()
+                func = self.symbol_table.type_of(object) + "." + \
+                       self.tokenizer.identifier()
             else:   # is class function
                 func += "." + self.tokenizer.identifier()
             self.tokenizer.advance()

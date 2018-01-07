@@ -89,8 +89,6 @@ class VMWriter:
         :return:
         """
 
-        # todo: func
-
         self.file.write("function " + name + " " + str(num_locals) + NEW_LINE)
 
     def write_return(self):
