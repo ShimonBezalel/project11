@@ -562,12 +562,12 @@ class CompilationEngine():
         symbol = self.tokenizer.identifier()
         segment = self.symbol_table.kind_of(symbol)
         index = self.symbol_table.index_of(symbol)
-        if segment == "field":
-            # Using 'this'
-            self.writer.write_push(POINTER, 0)
-            self.writer.write_push(THIS, index)
-        elif segment:
-            self.writer.write_push(segment, index)
+        # if segment == "field":
+        #     # Using 'this'
+        #     self.writer.write_push(POINTER, 0)
+        #     self.writer.write_push(THIS, index)
+        # elif segment:
+        #     self.writer.write_push(segment, index)
         self.tokenizer.advance()
 
         used_eq = self.possible_array(symbol)
@@ -598,13 +598,13 @@ class CompilationEngine():
         # # self.write("<symbol> ] </symbol>")
         # Handling an array
         # Pushing the array name
-        # kind, index = self.symbol_table.kind_of(symbol), self.symbol_table.index_of(symbol)
-        # if kind == "field":
-        #     # Using 'this'
-        #     self.writer.write_push(POINTER, 0)
-        #     self.writer.write_push(THIS, index)
-        # elif kind:
-        #     self.writer.write_push(kind, index)
+        kind, index = self.symbol_table.kind_of(symbol), self.symbol_table.index_of(symbol)
+        if kind == "field":
+            # Using 'this'
+            self.writer.write_push(POINTER, 0)
+            self.writer.write_push(THIS, index)
+        elif kind:
+            self.writer.write_push(kind, index)
 
         self.compile_expression()
         self.eat(']')
@@ -812,7 +812,7 @@ class CompilationEngine():
             self.writer.write_call(BuiltinFunctions.str_new.value, 1)
             for i in range(len(str_const)):
                 self.writer.write_push(CONSTANT, ord(str_const[i]))
-                self.writer.write_call(BuiltinFunctions.str_app_char.value, 1)
+                self.writer.write_call(BuiltinFunctions.str_app_char.value, 2)
             self.tokenizer.advance()
 
         # If the token is a keyword
